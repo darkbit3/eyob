@@ -172,29 +172,26 @@ export default function CustomerLayout() {
       </footer>
 
       {/* ══════════════════════════════════════════════════════════
-          SINGLE "GET APP" BUTTON (BOTTOM-LEFT CORNER WITH DOWNLOAD)
+          CIRCULAR FLOATING ACTION BUTTON (FAB) FOR GET APP
       ══════════════════════════════════════════════════════════ */}
-      <div className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-50">
+      <div className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-50 group">
         <button
           onClick={handleInstallApp}
           disabled={installing}
-          className="group relative bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-3 rounded-2xl shadow-xl shadow-emerald-600/40 flex items-center gap-2.5 border-2 border-emerald-400/30 transition-all duration-300 active:scale-95 hover:scale-105 animate-pulse-subtle"
+          className="relative w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xl shadow-emerald-600/50 flex flex-col items-center justify-center border-2 border-emerald-400/40 transition-all duration-300 active:scale-90 hover:scale-110"
+          title="Download BidLow App"
         >
-          {/* Animated Smartphone + Download Icon */}
-          <div className="relative shrink-0">
-            <Smartphone className="w-5 h-5 text-amber-300 animate-pulse" />
-            <Download className="w-3 h-3 text-white absolute -bottom-1 -right-1 bg-emerald-800 rounded-full p-0.5" />
+          {/* Pulsing ring around circular button */}
+          <span className="absolute -inset-1 rounded-full border-2 border-emerald-500 animate-ping opacity-40"></span>
+
+          {/* Smartphone + Download icon inside circle */}
+          <div className="relative">
+            <Smartphone className="w-6 h-6 text-amber-300 group-hover:scale-110 transition-transform" />
+            <Download className="w-3 h-3 text-white absolute -bottom-1 -right-1 bg-emerald-800 rounded-full p-0.5 animate-bounce" />
           </div>
 
-          <div className="text-left leading-tight">
-            <span className="text-[10px] text-emerald-100 font-bold uppercase tracking-wider block">Mobile App</span>
-            <span className="text-sm font-black block">{installing ? 'Downloading...' : 'Get App 📲'}</span>
-          </div>
-
-          {/* Animated Badge pulse indicator */}
-          <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-400"></span>
+          <span className="text-[8px] font-black uppercase text-emerald-100 tracking-tighter mt-0.5 leading-none">
+            {installing ? '...' : 'Get App'}
           </span>
         </button>
       </div>
