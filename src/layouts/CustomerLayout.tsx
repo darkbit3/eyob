@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import NotificationDropdown from '../components/NotificationDropdown';
 import {
   Gavel, LayoutDashboard, Wallet, LogOut, ShieldCheck,
-  Sparkles, Coins, History, Home, Search, Trophy
+  Sparkles, Coins, History, Home, Search, Trophy,
+  Download, Smartphone, ArrowDown, CheckCircle2, Sparkle
 } from 'lucide-react';
 
 export default function CustomerLayout() {
@@ -11,11 +13,35 @@ export default function CustomerLayout() {
   const nav = useNavigate();
   const loc = useLocation();
 
+  const [installing, setInstalling] = useState(false);
+  const [installedSuccess, setInstalledSuccess] = useState(false);
+
   const userBidsCount = bids.filter(b => b.bidderId === currentUser?.id).length;
 
   function logout() {
     setCurrentUser(null);
     nav('/login');
+  }
+
+  function handleInstallApp() {
+    setInstalling(true);
+
+    // Simulate APK/App manifest download trigger
+    const element = document.createElement("a");
+    const file = new Blob([
+      `BidLow Auction App v1.0.4\nPlatform: Android/iOS Web App\nStatus: Verified\nTimestamp: ${new Date().toISOString()}`
+    ], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = "BidLow-App.apk";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+    setTimeout(() => {
+      setInstalling(false);
+      setInstalledSuccess(true);
+      setTimeout(() => setInstalledSuccess(false), 4000);
+    }, 1500);
   }
 
   const desktopLinks = [
@@ -25,7 +51,6 @@ export default function CustomerLayout() {
     { to: '/winner-verification', icon: <ShieldCheck className="w-4 h-4" />, label: 'Fairness Audit' },
   ];
 
-  // Mobile bottom nav tabs
   const mobileNavTabs = [
     { to: '/dashboard', icon: Home, label: 'Home' },
     { to: '/auctions', icon: Search, label: 'Auctions' },
@@ -35,7 +60,7 @@ export default function CustomerLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative">
       {/* Top Banner */}
       <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2 shadow-inner">
         <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
@@ -129,7 +154,7 @@ export default function CustomerLayout() {
         </div>
       </header>
 
-      {/* Main Content — extra bottom padding on mobile for the nav bar */}
+      {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 md:pb-8">
         <Outlet />
       </main>
@@ -147,10 +172,48 @@ export default function CustomerLayout() {
       </footer>
 
       {/* ══════════════════════════════════════════════════════════
+          INSTALL APP BUTTON (BOTTOM-LEFT CORNER WITH ANIMATION)
+      ══════════════════════════════════════════════════════════ */}
+      <div className="fixed bottom-24 left-3 md:bottom-6 md:left-6 z-50 flex items-center gap-2">
+        {/* Animated Arrow pointing towards the button */}
+        <div className="flex items-center gap-1 bg-amber-400 text-slate-900 px-2.5 py-1 rounded-full text-[11px] font-black shadow-lg animate-bounce border border-amber-300">
+          <Sparkle className="w-3.5 h-3.5 fill-slate-900" />
+          <span>Get App</span>
+          <ArrowDown className="w-3.5 h-3.5 rotate-[-45deg] animate-pulse" />
+        </div>
+
+        {/* Install Button */}
+        <button
+          onClick={handleInstallApp}
+          disabled={installing}
+          className="group relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-3.5 py-2.5 rounded-2xl shadow-xl shadow-blue-500/30 flex items-center gap-2 border border-white/20 transition-all duration-300 active:scale-95 hover:scale-105"
+        >
+          <div className="relative">
+            <Smartphone className="w-4 h-4 text-amber-300 animate-pulse" />
+            <Download className="w-2.5 h-2.5 text-white absolute -bottom-1 -right-1" />
+          </div>
+          <div className="text-left leading-none">
+            <span className="text-[10px] text-blue-100 font-extrabold uppercase block tracking-wider">Install</span>
+            <span className="text-xs font-black block">{installing ? 'Downloading...' : 'BidLow App'}</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Success Toast */}
+      {installedSuccess && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 font-sans border border-emerald-400">
+          <CheckCircle2 className="w-5 h-5 text-emerald-200 animate-bounce" />
+          <div>
+            <p className="text-xs font-black">BidLow App Package Downloaded!</p>
+            <p className="text-[10px] text-emerald-100 font-medium">Installing BidLow on your mobile device...</p>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
           MOBILE BOTTOM NAVIGATION BAR
       ══════════════════════════════════════════════════════════ */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
-        {/* Frosted glass background */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40">
         <div className="bg-white/90 backdrop-blur-xl border-t border-slate-200/80 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
           {/* User info strip */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100/80 bg-gradient-to-r from-blue-50/80 to-indigo-50/80">
@@ -192,16 +255,13 @@ export default function CustomerLayout() {
                   className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 relative transition-all duration-200
                     ${active ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                  {/* Active indicator bar */}
                   {active && (
                     <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full" />
                   )}
 
-                  {/* Icon wrapper */}
                   <div className={`relative w-10 h-8 flex items-center justify-center rounded-xl transition-all duration-200
                     ${active ? 'bg-blue-50 scale-110' : 'scale-100'}`}>
                     <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-slate-400'}`} />
-                    {/* Badge */}
                     {badge && badge > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
                         {badge > 9 ? '9+' : badge}
@@ -217,7 +277,6 @@ export default function CustomerLayout() {
             })}
           </div>
 
-          {/* Safe area spacer for iOS */}
           <div className="h-safe-area-inset-bottom" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
         </div>
       </nav>
