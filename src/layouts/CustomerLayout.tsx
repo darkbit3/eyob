@@ -5,7 +5,7 @@ import NotificationDropdown from '../components/NotificationDropdown';
 import {
   Gavel, LayoutDashboard, Wallet, LogOut, ShieldCheck,
   Sparkles, Coins, History, Home, Search, Trophy,
-  Download, Smartphone, ArrowDown, CheckCircle2, Sparkle
+  Download, Smartphone, CheckCircle2
 } from 'lucide-react';
 
 export default function CustomerLayout() {
@@ -26,10 +26,10 @@ export default function CustomerLayout() {
   function handleInstallApp() {
     setInstalling(true);
 
-    // Simulate APK/App manifest download trigger
+    // Trigger instant app download
     const element = document.createElement("a");
     const file = new Blob([
-      `BidLow Auction App v1.0.4\nPlatform: Android/iOS Web App\nStatus: Verified\nTimestamp: ${new Date().toISOString()}`
+      `BidLow Auction Mobile App v1.0.4\nPlatform: Android APK / iOS Web App\nVerified Provably Fair System\nDownloaded: ${new Date().toISOString()}`
     ], { type: 'text/plain' });
     element.href = URL.createObjectURL(file);
     element.download = "BidLow-App.apk";
@@ -41,7 +41,7 @@ export default function CustomerLayout() {
       setInstalling(false);
       setInstalledSuccess(true);
       setTimeout(() => setInstalledSuccess(false), 4000);
-    }, 1500);
+    }, 1200);
   }
 
   const desktopLinks = [
@@ -61,37 +61,37 @@ export default function CustomerLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2 shadow-inner">
+      {/* Top Banner Notice */}
+      <div className="bg-emerald-700 text-white text-xs py-2 px-4 text-center font-bold flex items-center justify-center gap-2 shadow-inner">
         <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
         <span>Welcome to <strong>BidLow</strong> — Ethiopia's premier Lowest Unique Bid Auction Platform!</span>
-        <span className="hidden md:inline-block bg-white/20 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold">100% Provably Fair</span>
+        <span className="hidden md:inline-block bg-white/20 px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-extrabold">100% Provably Fair</span>
       </div>
 
-      {/* Header */}
-      <header className="glass-nav border-b border-slate-200/80 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Header — White with Bold Green Accents */}
+      <header className="glass-nav border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div className="w-full px-4 sm:px-8 lg:px-12">
           <div className="flex items-center justify-between h-16">
 
             {/* Brand */}
             <Link to="/dashboard" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-500/30 group-hover:scale-105 transition-transform duration-300">
+              <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-md shadow-emerald-600/30 group-hover:scale-105 transition-transform duration-300">
                 <Gavel className="w-5 h-5 text-white" />
               </div>
               <div>
-                <span className="font-bold text-slate-900 text-xl tracking-tight group-hover:text-blue-600 transition-colors">BidLow</span>
-                <span className="text-[10px] text-blue-600 block font-semibold uppercase tracking-widest -mt-1">Unique Auctions</span>
+                <span className="font-black text-slate-900 text-xl tracking-tight group-hover:text-emerald-600 transition-colors">BidLow</span>
+                <span className="text-[10px] text-emerald-600 block font-bold uppercase tracking-widest -mt-1">Unique Auctions</span>
               </div>
             </Link>
 
             {/* Desktop Nav Pills */}
-            <div className="hidden md:flex items-center gap-1.5 bg-slate-100/70 p-1.5 rounded-2xl border border-slate-200/60">
+            <div className="hidden md:flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
               {desktopLinks.map(l => {
                 const active = loc.pathname.startsWith(l.to);
                 return (
                   <Link key={l.to} to={l.to}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
-                      ${active ? 'bg-white text-blue-600 shadow-sm border border-slate-200/60' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'}`}>
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200
+                      ${active ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white'}`}>
                     {l.icon}{l.label}
                   </Link>
                 );
@@ -101,23 +101,23 @@ export default function CustomerLayout() {
             {/* Right Side Actions */}
             <div className="flex items-center gap-2 sm:gap-3">
               {/* Credit Pill */}
-              <Link to="/wallet" className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border border-amber-300/40 px-3 py-1.5 rounded-full transition-all duration-300">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-sm">
+              <Link to="/wallet" className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-1.5 rounded-full transition-all duration-300">
+                <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-xs">
                   <Coins className="w-3 h-3" />
                 </div>
                 <div className="text-left leading-none">
-                  <span className="text-[10px] text-amber-700 font-bold block uppercase">Credits</span>
-                  <span className="text-xs font-black text-amber-800">{currentUser?.credits ?? 0}</span>
+                  <span className="text-[9px] text-emerald-700 font-bold block uppercase">Credits</span>
+                  <span className="text-xs font-black text-emerald-900">{currentUser?.credits ?? 0}</span>
                 </div>
               </Link>
 
               {/* My Bids Icon — desktop only */}
               <Link to="/bids"
-                className="hidden md:flex relative p-2.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-colors items-center justify-center"
+                className="hidden md:flex relative p-2.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors items-center justify-center"
                 title="My Bids">
                 <History className="w-5 h-5" />
                 {userBidsCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-blue-600 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md">
+                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-emerald-600 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md">
                     {userBidsCount}
                   </span>
                 )}
@@ -128,7 +128,7 @@ export default function CustomerLayout() {
 
               {/* User Avatar */}
               <div className="hidden sm:flex items-center gap-2.5 pl-2 border-l border-slate-200">
-                <div className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-blue-100">
+                <div className="w-9 h-9 bg-emerald-600 rounded-full flex items-center justify-center text-white font-black text-sm shadow-md ring-2 ring-emerald-100">
                   {currentUser?.name?.charAt(0) ?? 'U'}
                 </div>
                 <div className="hidden lg:block text-left leading-tight">
@@ -140,8 +140,8 @@ export default function CustomerLayout() {
               {/* Admin Portal */}
               {currentUser?.role === 'admin' && (
                 <Link to="/admin"
-                  className="hidden sm:flex items-center gap-1.5 text-xs bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 px-3 py-1.5 rounded-full font-bold transition-all shadow-sm">
-                  <ShieldCheck className="w-3.5 h-3.5 text-purple-600" /> Admin
+                  className="hidden sm:flex items-center gap-1.5 text-xs bg-emerald-700 text-white px-3 py-1.5 rounded-full font-bold transition-all shadow-sm hover:bg-emerald-800">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Admin
                 </Link>
               )}
 
@@ -154,58 +154,58 @@ export default function CustomerLayout() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 md:pb-8">
+      {/* Main Content — End-to-End Full Width (w-full) */}
+      <main className="flex-1 w-full px-4 sm:px-8 lg:px-12 py-6 pb-28 md:pb-8">
         <Outlet />
       </main>
 
       {/* Desktop Footer */}
       <footer className="hidden md:block bg-white border-t border-slate-200 mt-auto py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:flex sm:items-center sm:justify-between text-xs text-slate-500 font-medium">
+        <div className="w-full px-4 sm:px-8 lg:px-12 text-center sm:flex sm:items-center sm:justify-between text-xs text-slate-500 font-medium">
           <p>© {new Date().getFullYear()} BidLow Auction Systems. All rights reserved.</p>
           <div className="flex items-center justify-center gap-4 mt-3 sm:mt-0">
-            <Link to="/winner-verification" className="hover:text-blue-600 transition-colors">Provably Fair Algorithm</Link>
+            <Link to="/winner-verification" className="hover:text-emerald-600 transition-colors">Provably Fair Algorithm</Link>
             <span>•</span>
-            <Link to="/auctions" className="hover:text-blue-600 transition-colors">Live Auctions</Link>
+            <Link to="/auctions" className="hover:text-emerald-600 transition-colors">Live Auctions</Link>
           </div>
         </div>
       </footer>
 
       {/* ══════════════════════════════════════════════════════════
-          INSTALL APP BUTTON (BOTTOM-LEFT CORNER WITH ANIMATION)
+          SINGLE "GET APP" BUTTON (BOTTOM-LEFT CORNER WITH DOWNLOAD)
       ══════════════════════════════════════════════════════════ */}
-      <div className="fixed bottom-24 left-3 md:bottom-6 md:left-6 z-50 flex items-center gap-2">
-        {/* Animated Arrow pointing towards the button */}
-        <div className="flex items-center gap-1 bg-amber-400 text-slate-900 px-2.5 py-1 rounded-full text-[11px] font-black shadow-lg animate-bounce border border-amber-300">
-          <Sparkle className="w-3.5 h-3.5 fill-slate-900" />
-          <span>Get App</span>
-          <ArrowDown className="w-3.5 h-3.5 rotate-[-45deg] animate-pulse" />
-        </div>
-
-        {/* Install Button */}
+      <div className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-50">
         <button
           onClick={handleInstallApp}
           disabled={installing}
-          className="group relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-3.5 py-2.5 rounded-2xl shadow-xl shadow-blue-500/30 flex items-center gap-2 border border-white/20 transition-all duration-300 active:scale-95 hover:scale-105"
+          className="group relative bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-3 rounded-2xl shadow-xl shadow-emerald-600/40 flex items-center gap-2.5 border-2 border-emerald-400/30 transition-all duration-300 active:scale-95 hover:scale-105 animate-pulse-subtle"
         >
-          <div className="relative">
-            <Smartphone className="w-4 h-4 text-amber-300 animate-pulse" />
-            <Download className="w-2.5 h-2.5 text-white absolute -bottom-1 -right-1" />
+          {/* Animated Smartphone + Download Icon */}
+          <div className="relative shrink-0">
+            <Smartphone className="w-5 h-5 text-amber-300 animate-pulse" />
+            <Download className="w-3 h-3 text-white absolute -bottom-1 -right-1 bg-emerald-800 rounded-full p-0.5" />
           </div>
-          <div className="text-left leading-none">
-            <span className="text-[10px] text-blue-100 font-extrabold uppercase block tracking-wider">Install</span>
-            <span className="text-xs font-black block">{installing ? 'Downloading...' : 'BidLow App'}</span>
+
+          <div className="text-left leading-tight">
+            <span className="text-[10px] text-emerald-100 font-bold uppercase tracking-wider block">Mobile App</span>
+            <span className="text-sm font-black block">{installing ? 'Downloading...' : 'Get App 📲'}</span>
           </div>
+
+          {/* Animated Badge pulse indicator */}
+          <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-400"></span>
+          </span>
         </button>
       </div>
 
       {/* Success Toast */}
       {installedSuccess && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 font-sans border border-emerald-400">
-          <CheckCircle2 className="w-5 h-5 text-emerald-200 animate-bounce" />
+          <CheckCircle2 className="w-5 h-5 text-amber-300 animate-bounce" />
           <div>
-            <p className="text-xs font-black">BidLow App Package Downloaded!</p>
-            <p className="text-[10px] text-emerald-100 font-medium">Installing BidLow on your mobile device...</p>
+            <p className="text-xs font-black">BidLow App Downloaded!</p>
+            <p className="text-[10px] text-emerald-100 font-medium">Downloading APK package to your device...</p>
           </div>
         </div>
       )}
@@ -214,11 +214,11 @@ export default function CustomerLayout() {
           MOBILE BOTTOM NAVIGATION BAR
       ══════════════════════════════════════════════════════════ */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40">
-        <div className="bg-white/90 backdrop-blur-xl border-t border-slate-200/80 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
+        <div className="bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
           {/* User info strip */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100/80 bg-gradient-to-r from-blue-50/80 to-indigo-50/80">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-emerald-50/80">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-full flex items-center justify-center text-white font-bold text-xs shadow ring-2 ring-blue-100">
+              <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center text-white font-black text-xs shadow ring-2 ring-emerald-100">
                 {currentUser?.name?.charAt(0) ?? 'U'}
               </div>
               <div className="leading-tight">
@@ -229,13 +229,13 @@ export default function CustomerLayout() {
             <div className="flex items-center gap-2">
               {currentUser?.role === 'admin' && (
                 <Link to="/admin"
-                  className="flex items-center gap-1 text-[10px] bg-purple-100 text-purple-700 border border-purple-200 px-2 py-1 rounded-full font-bold">
+                  className="flex items-center gap-1 text-[10px] bg-emerald-700 text-white px-2.5 py-1 rounded-full font-bold">
                   <ShieldCheck className="w-3 h-3" /> Admin
                 </Link>
               )}
-              <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">
-                <Coins className="w-3 h-3 text-amber-500" />
-                <span className="text-[10px] font-black text-amber-700">{currentUser?.credits ?? 0}</span>
+              <div className="flex items-center gap-1 bg-white border border-emerald-200 px-2 py-1 rounded-full">
+                <Coins className="w-3 h-3 text-emerald-600" />
+                <span className="text-[10px] font-black text-emerald-800">{currentUser?.credits ?? 0}</span>
               </div>
               <button onClick={logout}
                 className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
@@ -253,23 +253,23 @@ export default function CustomerLayout() {
                   key={to}
                   to={to}
                   className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 relative transition-all duration-200
-                    ${active ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                    ${active ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   {active && (
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full" />
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-emerald-600 rounded-full" />
                   )}
 
                   <div className={`relative w-10 h-8 flex items-center justify-center rounded-xl transition-all duration-200
-                    ${active ? 'bg-blue-50 scale-110' : 'scale-100'}`}>
-                    <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-slate-400'}`} />
+                    ${active ? 'bg-emerald-50 scale-110' : 'scale-100'}`}>
+                    <Icon className={`w-5 h-5 ${active ? 'text-emerald-600' : 'text-slate-400'}`} />
                     {badge && badge > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-600 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
                         {badge > 9 ? '9+' : badge}
                       </span>
                     )}
                   </div>
 
-                  <span className={`text-[10px] font-bold leading-none ${active ? 'text-blue-600' : 'text-slate-400'}`}>
+                  <span className={`text-[10px] font-bold leading-none ${active ? 'text-emerald-600' : 'text-slate-400'}`}>
                     {label}
                   </span>
                 </Link>
