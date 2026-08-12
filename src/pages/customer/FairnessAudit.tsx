@@ -1,0 +1,599 @@
+import { useState, useMemo } from 'react';
+import { useApp } from '../../context/AppContext';
+import { formatDate, formatCurrency } from '../../utils/countdown';
+import {
+  Shield, Trophy, CheckCircle, XCircle, Search,
+  ChevronDown, BarChart2, Hash, Sparkles, Info,
+  ArrowUpDown, AlertCircle, Eye,
+} from 'lucide-react';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+type SortDir = 'asc' | 'desc';
+type SortKey = 'amount' | 'timestamp' | 'freq';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fakeHash(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h).toString(16).padStart(8, '0').toUpperCase();
+}
+
+function buildHash(auctionId: string, bids: { amount: number; bidderId: string }[]) {
+  const payload = auctionId + bids.map(b => `${b.bidderId}:${b.amount}`).join('|');
+  return fakeHash(payload).padEnd(64, fakeHash(payload + 'x'));
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+export default function FairnessAudit() {
+  const { auctions, bids } = useApp();
+
+  const closedAuctions = useMemo(
+    () => auctions.filter(a => a.status === 'closed'),
+    [auctions]
+  );
+
+  const [selectedId, setSelectedId] = useState<string>(closedAuctions[0]?.id ?? '');
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('amount');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [activeTab, setActiveTab] = useState<'algorithm' | 'frequency' | 'log'>('algorithm');
+  const [showHashInfo, setShowHashInfo] = useState(false);
+
+  const auction = useMemo(
+    () => auctions.find(a => a.id === selectedId),
+    [auctions, selectedId]
+  );
+
+  const rawBids = useMemo(
+    () => bids.filter(b => b.auctionId === selectedId),
+    [bids, selectedId]
+  );
+
+  // ── Core bid analysis ────────────────────────────────────────────────────
+  const freqMap = useMemo(() => {
+    const m: Record<number, number> = {};
+    rawBids.forEach(b => { m[b.amount] = (m[b.amount] ?? 0) + 1; });
+    return m;
+  }, [rawBids]);
+
+  const uniqueAmounts = useMemo(
+    () =>
+      Object.keys(freqMap)
+        .map(Number)
+        .filter(a => freqMap[a] === 1)
+        .sort((a, b) => a - b),
+    [freqMap]
+  );
+
+  const lowestUnique = uniqueAmounts.length > 0 ? uniqueAmounts[0] : null;
+  const winnerBid = rawBids.find(b => b.amount === lowestUnique) ?? null;
+
+  const taggedBids = useMemo(
+    () =>
+      rawBids.map(b => ({
+        ...b,
+        freq: freqMap[b.amount] ?? 1,
+        isUnique: freqMap[b.amount] === 1,
+        isWinner: b.amount === lowestUnique,
+      })),
+    [rawBids, freqMap, lowestUnique]
+  );
+
+  // ── Search + Sort ────────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    let rows = taggedBids.filter(
+      b =>
+        b.maskedBidderId.toLowerCase().includes(search.toLowerCase()) ||
+        String(b.amount).includes(search)
+    );
+    rows = [...rows].sort((a, b) => {
+      let diff = 0;
+      if (sortKey === 'amount') diff = a.amount - b.amount;
+      if (sortKey === 'freq') diff = a.freq - b.freq;
+      if (sortKey === 'timestamp') diff = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+      return sortDir === 'asc' ? diff : -diff;
+    });
+    return rows;
+  }, [taggedBids, search, sortKey, sortDir]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  }
+
+  const hash = useMemo(() => buildHash(selectedId, rawBids), [selectedId, rawBids]);
+
+  const steps = [
+    {
+      n: 1,
+      icon: '📥',
+      title: 'Collect All Bids',
+      desc: `${rawBids.length} total bids were collected across ${Object.keys(freqMap).length} distinct amounts.`,
+      detail: 'Every bid placed by every participant is recorded immutably with a timestamp and masked bidder ID.',
+    },
+    {
+      n: 2,
+      icon: '🔢',
+      title: 'Count Bid Frequencies',
+      desc: `Each unique amount is tallied. ${Object.values(freqMap).filter(v => v > 1).length} amounts were bid more than once.`,
+      detail: 'The system counts how many different bidders submitted each specific ETB value.',
+    },
+    {
+      n: 3,
+      icon: '🗑️',
+      title: 'Eliminate Duplicates',
+      desc: `${Object.values(freqMap).filter(v => v > 1).reduce((s, v) => s + v, 0)} bids are disqualified because their amounts appeared more than once.`,
+      detail: 'Any amount bid by 2 or more participants is disqualified. No exceptions.',
+    },
+    {
+      n: 4,
+      icon: '📋',
+      title: 'Isolate Unique Bids',
+      desc: `${uniqueAmounts.length} amounts remain after eliminating all duplicates.`,
+      detail: 'Only bids with an amount that no other bidder chose are eligible to win.',
+    },
+    {
+      n: 5,
+      icon: '🎯',
+      title: 'Select Lowest Unique',
+      desc: lowestUnique
+        ? `The lowest unique bid is ${lowestUnique} ETB — the smallest amount that only one person bid.`
+        : 'No unique bids found. No winner can be determined.',
+      detail: 'Among all surviving unique bids, the smallest value wins. This is the core of the "Lowest Unique Bid" mechanic.',
+    },
+    {
+      n: 6,
+      icon: '🏆',
+      title: 'Declare Winner',
+      desc: winnerBid
+        ? `Bidder ${winnerBid.maskedBidderId} wins "${auction?.title}" with a bid of ${lowestUnique} ETB!`
+        : 'No winner declared.',
+      detail: 'The single bidder who placed the lowest unique amount is declared the official winner.',
+    },
+  ];
+
+  return (
+    <div className="space-y-6 font-sans">
+
+      {/* ── Hero Banner ───────────────────────────────────────────────────── */}
+      <div className="bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-emerald-900/40">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <Shield className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight">Fairness Audit</h1>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 px-2.5 py-1 rounded-full">
+                  100% Transparent
+                </span>
+              </div>
+              <p className="text-slate-400 text-sm mt-1 max-w-lg">
+                Every closed auction's winner can be independently verified by anyone. The algorithm is deterministic, open, and tamper-proof.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-3 py-2 rounded-xl self-start">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            Provably Fair Engine v2
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-3 mt-6">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+            <p className="text-2xl font-black text-white">{closedAuctions.length}</p>
+            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Auditable Auctions</p>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+            <p className="text-2xl font-black text-white">{rawBids.length}</p>
+            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Bids in Selected</p>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+            <p className="text-2xl font-black text-emerald-400">{uniqueAmounts.length}</p>
+            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Unique Bids</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Auction Selector ──────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
+        <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
+          Select Closed Auction to Audit
+        </label>
+        {closedAuctions.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+            No closed auctions available yet. Auctions appear here once they end.
+          </div>
+        ) : (
+          <div className="relative">
+            <select
+              value={selectedId}
+              onChange={e => { setSelectedId(e.target.value); setSearch(''); }}
+              className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer"
+            >
+              {closedAuctions.map(a => (
+                <option key={a.id} value={a.id}>
+                  {a.title} — {formatCurrency(a.retailValue)} retail • {a.totalBids} bids
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+        )}
+      </div>
+
+      {/* ── Only show rest if an auction is selected ──────────────────────── */}
+      {auction && (
+        <>
+          {/* ── Auction Info Bar ───────────────────────────────────────────── */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 sm:p-5">
+              <img
+                src={auction.image}
+                alt={auction.title}
+                className="w-20 h-20 rounded-xl object-cover border border-slate-100 flex-shrink-0"
+                onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=200&q=80'; }}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                    {auction.category}
+                  </span>
+                  <span className="badge-closed text-[10px] px-2 py-0.5">✓ Closed</span>
+                </div>
+                <h2 className="text-base font-black text-slate-900 mt-1 truncate">{auction.title}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{auction.description}</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-shrink-0 text-center">
+                {[
+                  { label: 'Retail Value', value: formatCurrency(auction.retailValue), color: 'text-slate-900' },
+                  { label: 'Bid Range', value: `${auction.minBid}–${auction.maxBid} ETB`, color: 'text-blue-600' },
+                  { label: 'Participants', value: auction.totalParticipants, color: 'text-slate-900' },
+                  { label: 'Total Bids', value: rawBids.length, color: 'text-slate-900' },
+                ].map(s => (
+                  <div key={s.label} className="bg-slate-50 border border-slate-100 rounded-xl p-2.5">
+                    <p className={`text-sm font-black ${s.color}`}>{s.value}</p>
+                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Hash strip */}
+            <div className="border-t border-slate-100 bg-slate-50 px-4 sm:px-5 py-3 flex items-start gap-3">
+              <Hash className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Result Hash (SHA-256 simulation)</span>
+                  <button
+                    onClick={() => setShowHashInfo(v => !v)}
+                    className="text-[10px] text-emerald-600 hover:underline font-semibold flex items-center gap-0.5"
+                  >
+                    <Info className="w-3 h-3" /> What is this?
+                  </button>
+                </div>
+                <p className="font-mono text-[11px] text-slate-600 break-all mt-1">{hash}</p>
+              </div>
+            </div>
+
+            {showHashInfo && (
+              <div className="border-t border-emerald-100 bg-emerald-50 px-4 sm:px-5 py-3 text-xs text-emerald-800 font-medium">
+                This hash is computed from the auction ID and every bid's bidder + amount pair. If any single bid were changed after the fact, this hash would be completely different — making tampering immediately detectable by anyone who saved this value.
+              </div>
+            )}
+          </div>
+
+          {/* ── Winner Card ────────────────────────────────────────────────── */}
+          {winnerBid ? (
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-300 rounded-2xl p-5 sm:p-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-emerald-100 border border-emerald-200 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Trophy className="w-7 h-7 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">🏆 Verified Winner</p>
+                    <p className="text-xl font-black text-emerald-900 mt-0.5">{winnerBid.maskedBidderId}</p>
+                    <p className="text-sm text-emerald-700 mt-1">
+                      Winning bid: <span className="font-black">{lowestUnique} ETB</span>
+                      <span className="text-emerald-600 ml-2 text-xs">(Lowest Unique Bid)</span>
+                    </p>
+                    <p className="text-xs text-emerald-600 mt-0.5">
+                      Placed at {formatDate(winnerBid.timestamp)} • Retail value saved: {formatCurrency(auction.retailValue)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-emerald-600/20">
+                  <CheckCircle className="w-5 h-5" /> Verified ✓
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 flex items-center gap-4">
+              <AlertCircle className="w-8 h-8 text-amber-500 flex-shrink-0" />
+              <div>
+                <p className="font-black text-amber-800">No Winner Determined</p>
+                <p className="text-sm text-amber-700 mt-0.5">All bid amounts were submitted by more than one bidder — no unique bid exists.</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Tab Navigation ─────────────────────────────────────────────── */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full sm:w-auto overflow-x-auto">
+            {([
+              { key: 'algorithm', label: 'Algorithm Steps', icon: <Shield className="w-3.5 h-3.5" /> },
+              { key: 'frequency', label: 'Bid Frequency', icon: <BarChart2 className="w-3.5 h-3.5" /> },
+              { key: 'log',       label: `Full Bid Log (${rawBids.length})`, icon: <Eye className="w-3.5 h-3.5" /> },
+            ] as { key: typeof activeTab; label: string; icon: React.ReactNode }[]).map(t => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                  ${activeTab === t.key
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'}`}
+              >
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Algorithm Steps Tab ────────────────────────────────────────── */}
+          {activeTab === 'algorithm' && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+              <h2 className="font-black text-slate-900 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-emerald-600" />
+                Step-by-Step Algorithm Verification
+              </h2>
+              <p className="text-xs text-slate-500">
+                This is the exact algorithm the system ran to determine the winner. Every step is reproducible from the raw bid data.
+              </p>
+              <div className="space-y-3 mt-2">
+                {steps.map((s, idx) => {
+                  const isLast = idx === steps.length - 1;
+                  return (
+                    <div key={s.n} className={`flex items-start gap-4 p-4 rounded-xl border transition-all
+                      ${isLast && winnerBid
+                        ? 'bg-emerald-50 border-emerald-200'
+                        : 'bg-slate-50 border-slate-100'}`}
+                    >
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0
+                        ${isLast && winnerBid ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-white'}`}>
+                        {s.n}
+                      </div>
+                      <div className="text-2xl flex-shrink-0">{s.icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-black text-sm ${isLast && winnerBid ? 'text-emerald-900' : 'text-slate-900'}`}>
+                          {s.title}
+                        </p>
+                        <p className={`text-sm font-semibold mt-0.5 ${isLast && winnerBid ? 'text-emerald-700' : 'text-slate-700'}`}>
+                          {s.desc}
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-1 italic">{s.detail}</p>
+                      </div>
+                      {isLast && winnerBid && (
+                        <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Bid Frequency Tab ─────────────────────────────────────────── */}
+          {activeTab === 'frequency' && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+              <div>
+                <h2 className="font-black text-slate-900 flex items-center gap-2">
+                  <BarChart2 className="w-5 h-5 text-emerald-600" />
+                  Bid Frequency Map
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Every amount ever bid and how many people bid that exact value.
+                  <span className="text-emerald-600 font-semibold"> Green = winner</span>
+                  <span className="text-blue-600 font-semibold"> · Blue = unique</span>
+                  <span className="text-rose-500 font-semibold"> · Red = duplicate (eliminated)</span>
+                </p>
+              </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { color: 'bg-emerald-100 border-emerald-400 text-emerald-700', label: '🏆 Winner (lowest unique)' },
+                  { color: 'bg-blue-50 border-blue-200 text-blue-700', label: '✓ Unique (eligible)' },
+                  { color: 'bg-rose-50 border-rose-200 text-rose-500', label: '✗ Duplicate (eliminated)' },
+                ].map(l => (
+                  <div key={l.label} className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${l.color}`}>
+                    {l.label}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                {Object.entries(freqMap)
+                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .map(([amount, count]) => {
+                    const amt = Number(amount);
+                    const isWin = amt === lowestUnique;
+                    const isUniq = count === 1;
+                    return (
+                      <div
+                        key={amount}
+                        className={`rounded-xl p-3 border-2 text-center flex flex-col items-center transition-all
+                          ${isWin
+                            ? 'border-emerald-400 bg-emerald-50 shadow-md shadow-emerald-100'
+                            : isUniq
+                            ? 'border-blue-200 bg-blue-50'
+                            : 'border-rose-100 bg-rose-50'}`}
+                      >
+                        <p className={`text-xl font-black
+                          ${isWin ? 'text-emerald-700' : isUniq ? 'text-blue-700' : 'text-rose-400 line-through'}`}>
+                          {amount}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-semibold">ETB</p>
+                        <div className={`mt-1.5 text-[10px] font-black px-2 py-0.5 rounded-full
+                          ${isWin
+                            ? 'bg-emerald-600 text-white'
+                            : isUniq
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-rose-100 text-rose-600'}`}>
+                          ×{count} {isWin ? '🏆' : isUniq ? 'Unique' : 'Dup'}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {Object.keys(freqMap).length === 0 && (
+                <div className="text-center py-8 text-slate-400 text-sm">No bids recorded for this auction.</div>
+              )}
+            </div>
+          )}
+
+          {/* ── Full Bid Log Tab ───────────────────────────────────────────── */}
+          {activeTab === 'log' && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-black text-slate-900 flex items-center gap-2">
+                    <Eye className="w-5 h-5 text-emerald-600" />
+                    Complete Bid Log
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {rawBids.length} bids recorded · showing {filtered.length} results
+                  </p>
+                </div>
+                {/* Search */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search bidder ID or amount…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="pl-8 pr-3 py-2 text-xs font-medium border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 w-56"
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider">
+                      <th className="py-3 px-4 text-left">#</th>
+                      <th className="py-3 px-4 text-left">Bidder ID</th>
+                      <th className="py-3 px-4 text-left">
+                        <button
+                          onClick={() => toggleSort('amount')}
+                          className="flex items-center gap-1 hover:text-emerald-300 transition-colors"
+                        >
+                          Amount (ETB)
+                          <ArrowUpDown className={`w-3 h-3 ${sortKey === 'amount' ? 'text-emerald-400' : 'opacity-40'}`} />
+                        </button>
+                      </th>
+                      <th className="py-3 px-4 text-left">
+                        <button
+                          onClick={() => toggleSort('freq')}
+                          className="flex items-center gap-1 hover:text-emerald-300 transition-colors"
+                        >
+                          Frequency
+                          <ArrowUpDown className={`w-3 h-3 ${sortKey === 'freq' ? 'text-emerald-400' : 'opacity-40'}`} />
+                        </button>
+                      </th>
+                      <th className="py-3 px-4 text-left">Status</th>
+                      <th className="py-3 px-4 text-left">
+                        <button
+                          onClick={() => toggleSort('timestamp')}
+                          className="flex items-center gap-1 hover:text-emerald-300 transition-colors"
+                        >
+                          Timestamp
+                          <ArrowUpDown className={`w-3 h-3 ${sortKey === 'timestamp' ? 'text-emerald-400' : 'opacity-40'}`} />
+                        </button>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-slate-400 text-sm">
+                          {rawBids.length === 0 ? 'No bids for this auction.' : 'No results match your search.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((b, i) => (
+                        <tr
+                          key={b.id}
+                          className={`transition-colors text-xs
+                            ${b.isWinner
+                              ? 'bg-emerald-50 font-semibold'
+                              : b.isUnique
+                              ? 'bg-blue-50/40'
+                              : 'bg-rose-50/20 opacity-75'}`}
+                        >
+                          <td className="py-2.5 px-4 text-slate-400 font-mono">{i + 1}</td>
+                          <td className="py-2.5 px-4 font-mono text-slate-600">{b.maskedBidderId}</td>
+                          <td className={`py-2.5 px-4 font-black
+                            ${b.isWinner ? 'text-emerald-700' : b.isUnique ? 'text-blue-700' : 'text-rose-400 line-through'}`}>
+                            {b.amount}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <span className={`inline-flex items-center justify-center w-7 h-5 rounded-full text-[10px] font-black
+                              ${b.freq === 1 ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'}`}>
+                              ×{b.freq}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4">
+                            {b.isWinner ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                                <Trophy className="w-3 h-3 text-amber-500" /> Winner 🏆
+                              </span>
+                            ) : b.isUnique ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full">
+                                <CheckCircle className="w-3 h-3" /> Unique
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-500 bg-rose-50 border border-rose-100 px-2.5 py-0.5 rounded-full">
+                                <XCircle className="w-3 h-3" /> Duplicate
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-4 text-slate-400 font-mono text-[10px]">
+                            {formatDate(b.timestamp)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer summary */}
+              {rawBids.length > 0 && (
+                <div className="border-t border-slate-100 bg-slate-50 px-5 py-3 flex flex-wrap gap-4 text-xs font-semibold text-slate-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                    Winner: {winnerBid ? `${winnerBid.maskedBidderId} @ ${lowestUnique} ETB` : 'None'}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block" />
+                    Unique bids: {uniqueAmounts.length}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block" />
+                    Duplicates eliminated: {rawBids.length - uniqueAmounts.length}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

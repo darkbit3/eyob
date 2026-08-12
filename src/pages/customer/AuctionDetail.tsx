@@ -1,26 +1,52 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { ROUTES } from '../../utils/routes';
 import CountdownTimer from '../../components/CountdownTimer';
 import { formatCurrency, formatDate } from '../../utils/countdown';
 import {
   ChevronLeft, Users, TrendingDown, Phone,
-  CheckCircle, AlertCircle, Gavel, Sparkles, Play, RefreshCw, Trophy, XCircle, Coins, Clock, Star
+  CheckCircle, AlertCircle, Gavel, Sparkles, Play, RefreshCw, Trophy, XCircle, Clock, Star
 } from 'lucide-react';
 
 type ScanMark = 'idle' | 'scanning' | 'duplicate' | 'unique' | 'winner';
 
+// Validate bid amount: only allow one digit after decimal point
+const validateBidAmount = (value: string): string => {
+  // Allow empty string
+  if (value === '') return '';
+  
+  // Only allow numbers and one decimal point
+  if (!/^[\d.]*$/.test(value)) return '';
+  
+  // Split by decimal point
+  const parts = value.split('.');
+  if (parts.length > 2) return ''; // More than one decimal point
+  
+  // If there's a decimal part, limit to 1 digit
+  if (parts.length === 2) {
+    const integerPart = parts[0];
+    const decimalPart = parts[1].slice(0, 1); // Only first digit
+    return integerPart ? `${integerPart}.${decimalPart}` : `.${decimalPart}`;
+  }
+  
+  return value;
+};
+
 export default function AuctionDetail() {
   const { id } = useParams<{ id: string }>();
-  const { auctions, bids, users, currentUser, placeBid, setAuctions } = useApp();
+  const { auctions, products, bids, users, currentUser, placeBid, setAuctions } = useApp();
   const nav = useNavigate();
 
   const auction = auctions.find(a => a.id === id);
+  const linkedProduct = auction?.productId ? products.find(p => p.id === auction.productId) : undefined;
   const auctionBids = bids.filter(b => b.auctionId === id);
 
   const [bidAmount, setBidAmount] = useState<string>('');
   const [imgIdx, setImgIdx] = useState(0);
   const [bidResult, setBidResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [bidSubmitState, setBidSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [bidSubmitText, setBidSubmitText] = useState('');
   const [isSimulatedClosed, setIsSimulatedClosed] = useState(false);
 
   // ── MODAL STATE ──────────────────────────────────────────────────────────
@@ -155,7 +181,7 @@ export default function AuctionDetail() {
     <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 p-8 space-y-4">
       <div className="text-5xl mb-4">🔍</div>
       <p className="text-slate-500 font-bold">Auction not found.</p>
-      <button onClick={() => nav('/auctions')} className="btn-primary">Browse Auctions</button>
+      <button onClick={() => nav(ROUTES.AUCTIONS)} className="btn-primary">Browse Auctions</button>
     </div>
   );
 
@@ -166,24 +192,56 @@ export default function AuctionDetail() {
       setBidResult({ ok: false, msg: `Bid must be between ${auction!.minBid} and ${auction!.maxBid} ETB.` });
       return;
     }
-    if (!currentUser) { nav('/login'); return; }
-    if (currentUser.credits < 1) {
-      setBidResult({ ok: false, msg: 'Not enough credits. Purchase credits in your wallet to continue bidding.' });
-      return;
-    }
-    const ok = placeBid(auction!.id, amount);
-    if (ok) {
-      setBidResult({ ok: true, msg: `Bid of ${amount.toFixed(1)} ETB placed! 1 credit deducted.` });
-      setBidAmount('');
-    } else {
-      setBidResult({ ok: false, msg: 'Failed to place bid. Please try again.' });
-    }
-    setTimeout(() => setBidResult(null), 4000);
+    if (!currentUser) { nav(ROUTES.LOGIN); return; }
+
+    setBidSubmitState('loading');
+    setBidSubmitText('Placing your bid...');
+    setBidResult(null);
+
+    window.setTimeout(() => {
+      const ok = placeBid(auction!.id, amount);
+      if (ok) {
+        setBidSubmitState('success');
+        setBidSubmitText('You placed bet');
+        setBidResult({ ok: true, msg: `Bid of ${amount.toFixed(1)} ETB placed successfully!` });
+        setBidAmount('');
+      } else {
+        setBidSubmitState('error');
+        setBidSubmitText('Bid failed');
+        setBidResult({ ok: false, msg: 'Failed to place bid. Please try again.' });
+      }
+
+      window.setTimeout(() => {
+        setBidSubmitState('idle');
+        setBidSubmitText('');
+        setBidResult(null);
+      }, 1600);
+    }, 700);
   }
 
   // ── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-8 font-sans">
+    <>
+      {bidSubmitState !== 'idle' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-sm">
+          <div className="flex flex-col items-center justify-center gap-4 rounded-full bg-white/90 p-6 shadow-2xl ring-1 ring-slate-200">
+            {bidSubmitState === 'loading' ? (
+              <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+            ) : bidSubmitState === 'success' ? (
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <CheckCircle className="h-9 w-9" />
+              </div>
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                <XCircle className="h-9 w-9" />
+              </div>
+            )}
+            <p className="text-center text-sm font-bold text-slate-800">{bidSubmitText}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-8 font-sans">
       {/* Top Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <button onClick={() => nav(-1)} className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">
@@ -220,6 +278,11 @@ export default function AuctionDetail() {
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-blue-600">{auction.category}</span>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight mt-1">{auction.title}</h1>
+            {linkedProduct && (
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 font-semibold mt-2">
+                Product: {linkedProduct.name}
+              </p>
+            )}
             <p className="text-slate-600 text-sm leading-relaxed mt-2">{auction.description}</p>
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -247,15 +310,12 @@ export default function AuctionDetail() {
             <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-slate-900 text-sm flex items-center gap-2"><Gavel className="w-4 h-4 text-blue-600" /> Submit Your Bid</span>
-                <span className="text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200 flex items-center gap-1">
-                  <Coins className="w-3.5 h-3.5 text-amber-500" /> {currentUser?.credits ?? 0} Credits
-                </span>
               </div>
               <form onSubmit={handleBid} className="flex gap-2">
-                <input type="number" value={bidAmount} onChange={e => setBidAmount(e.target.value)}
+                <input type="number" value={bidAmount} onChange={e => setBidAmount(validateBidAmount(e.target.value))}
                   className="input-field flex-1 font-bold" placeholder={`Range: ${auction.minBid} – ${auction.maxBid} ETB`}
                   min={auction.minBid} max={auction.maxBid} />
-                <button type="submit" className="btn-primary whitespace-nowrap">Place Bid (1 Credit)</button>
+                <button type="submit" className="btn-primary whitespace-nowrap">Place Bid</button>
               </form>
               {bidResult && (
                 <div className={`flex items-center gap-2 text-xs font-bold p-3 rounded-xl ${bidResult.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
@@ -593,6 +653,7 @@ export default function AuctionDetail() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

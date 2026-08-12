@@ -1,25 +1,34 @@
 import { useState, useEffect } from 'react';
-import { getCountdown } from '../utils/countdown';
+import { formatAuctionCountdown, getAuctionDisplayStatus } from '../utils/countdown';
 import { Clock } from 'lucide-react';
 
-export default function CountdownTimer({ endTime, status }: { endTime: string; status: string }) {
-  const [time, setTime] = useState(getCountdown(endTime));
+export default function CountdownTimer({ endTime, status, startTime }: { endTime: string; status: string; startTime?: string }) {
+  const normalizedStatus = getAuctionDisplayStatus(status, startTime, endTime);
+  const [label, setLabel] = useState(formatAuctionCountdown(endTime, status, startTime));
 
   useEffect(() => {
-    if (status !== 'active') return;
-    const t = setInterval(() => setTime(getCountdown(endTime)), 1000);
+    const update = () => setLabel(formatAuctionCountdown(endTime, status, startTime));
+    update();
+    if (normalizedStatus === 'closed' || normalizedStatus === 'paused' || normalizedStatus === 'draft') return;
+    const t = setInterval(update, 1000);
     return () => clearInterval(t);
-  }, [endTime, status]);
+  }, [endTime, status, startTime, normalizedStatus]);
 
-  if (status === 'closed') return (
+  if (normalizedStatus === 'closed') return (
     <span className="flex items-center gap-1 text-gray-400 text-sm"><Clock className="w-3.5 h-3.5" /> Closed</span>
   );
-  if (status === 'upcoming') return (
-    <span className="flex items-center gap-1 text-blue-600 text-sm font-medium"><Clock className="w-3.5 h-3.5" /> Starts soon</span>
+
+  if (normalizedStatus === 'paused') return (
+    <span className="flex items-center gap-1 text-amber-600 text-sm font-semibold"><Clock className="w-3.5 h-3.5" /> Paused</span>
   );
+
+  if (normalizedStatus === 'draft') return (
+    <span className="flex items-center gap-1 text-slate-500 text-sm font-semibold"><Clock className="w-3.5 h-3.5" /> Draft</span>
+  );
+
   return (
-    <span className="flex items-center gap-1 text-orange-600 text-sm font-semibold">
-      <Clock className="w-3.5 h-3.5" /> {time}
+    <span className={`flex items-center gap-1 text-sm font-semibold ${normalizedStatus === 'upcoming' ? 'text-blue-600' : 'text-emerald-600'}`}>
+      <Clock className="w-3.5 h-3.5" /> {label}
     </span>
   );
 }

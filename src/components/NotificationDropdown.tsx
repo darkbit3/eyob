@@ -1,12 +1,15 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { ROUTES } from '../utils/routes';
 import { Bell, Check, Sparkles, Wallet, Gavel, ShieldAlert } from 'lucide-react';
 
 export default function NotificationDropdown() {
   const { notifications, markNotificationRead } = useApp();
   const [open, setOpen] = useState(false);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadNotifications = notifications.filter(n => !n.read);
+  const unreadCount = unreadNotifications.length;
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -47,18 +50,19 @@ export default function NotificationDropdown() {
             </div>
 
             <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
-              {notifications.length === 0 ? (
+              {unreadNotifications.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-400">
-                  No notifications yet
+                  No unread notifications
                 </div>
               ) : (
-                notifications.map(n => (
+                unreadNotifications.map(n => (
                   <div
                     key={n.id}
-                    onClick={() => markNotificationRead(n.id)}
-                    className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 ${
-                      !n.read ? 'bg-blue-50/40' : ''
-                    }`}
+                    onClick={() => {
+                      markNotificationRead(n.id);
+                      setOpen(false);
+                    }}
+                    className="p-4 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 bg-blue-50/40"
                   >
                     <div className="mt-0.5 p-2 bg-slate-100 rounded-xl flex-shrink-0">
                       {getIcon(n.type)}
@@ -80,6 +84,15 @@ export default function NotificationDropdown() {
                   </div>
                 ))
               )}
+            </div>
+            <div className="p-3 border-t border-slate-200 bg-slate-50 text-center">
+              <Link
+                to={ROUTES.NOTIFICATIONS}
+                onClick={() => setOpen(false)}
+                className="text-xs text-blue-600 font-semibold hover:text-blue-800"
+              >
+                View all notifications
+              </Link>
             </div>
           </div>
         </>

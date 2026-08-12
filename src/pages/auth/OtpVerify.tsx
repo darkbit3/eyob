@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { ROUTES } from '../../utils/routes';
 
 export default function OtpVerify() {
   const nav = useNavigate();
@@ -15,7 +16,7 @@ export default function OtpVerify() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    nav('/dashboard');
+    nav(ROUTES.DASHBOARD, { replace: true });
   }
 
   return (

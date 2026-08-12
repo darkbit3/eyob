@@ -1,11 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { ROUTES } from '../../utils/routes';
 import { formatDate, formatCurrency } from '../../utils/countdown';
 import { Shield, ChevronLeft, CheckCircle, XCircle, Trophy } from 'lucide-react';
 
 export default function WinnerVerification() {
   const { id } = useParams<{ id: string }>();
-  const { auctions, bids, users } = useApp();
+  const { auctions, bids } = useApp();
   const nav = useNavigate();
 
   const auction = auctions.find(a => a.id === id);
@@ -16,7 +17,7 @@ export default function WinnerVerification() {
       <div className="text-center py-20">
         <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <p className="text-gray-500 font-medium">Verification only available for closed auctions.</p>
-        <button onClick={() => nav('/auctions')} className="btn-primary mt-4">Browse Auctions</button>
+        <button onClick={() => nav(ROUTES.AUCTIONS)} className="btn-primary mt-4">Browse Auctions</button>
       </div>
     );
   }
@@ -36,7 +37,6 @@ export default function WinnerVerification() {
 
   const lowestUnique = uniqueAmounts.length > 0 ? Math.min(...uniqueAmounts) : null;
   const winner = rawBids.find(b => b.amount === lowestUnique);
-  const winnerUser = users.find(u => u.id === winner?.bidderId);
   const sortedForTable = [...taggedBids].sort((a, b) => a.amount - b.amount);
 
   const steps = [
@@ -82,7 +82,7 @@ export default function WinnerVerification() {
                 <p className="text-sm text-green-700 font-medium">🏆 Auction Winner</p>
                 <p className="text-2xl font-bold text-green-900">{winner.maskedBidderId}</p>
                 <p className="text-sm text-green-700">Winning bid: <strong>{lowestUnique} ETB</strong> (Lowest Unique)</p>
-                {winnerUser && <p className="text-xs text-green-600 mt-0.5">Retail value: {formatCurrency(auction.retailValue)}</p>}
+                <p className="text-xs text-green-600 mt-0.5">Retail value: {formatCurrency(auction.retailValue)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-full font-bold text-sm">

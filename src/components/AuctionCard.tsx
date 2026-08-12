@@ -1,19 +1,29 @@
 import { useNavigate } from 'react-router-dom';
 import { Auction } from '../data/mockData';
 import CountdownTimer from './CountdownTimer';
-import { formatCurrency } from '../utils/countdown';
+import { formatCurrency, getAuctionDisplayStatus } from '../utils/countdown';
+import { ROUTES } from '../utils/routes';
 import { Users, TrendingDown, ArrowRight } from 'lucide-react';
 
-export default function AuctionCard({ auction }: { auction: Auction }) {
+export default function AuctionCard({
+  auction,
+  onClick,
+}: {
+  auction: Auction;
+  onClick?: () => void;
+}) {
   const nav = useNavigate();
 
-  const isActive = auction.status === 'active';
-  const isUpcoming = auction.status === 'upcoming';
-  const isClosed = auction.status === 'closed';
+  const displayStatus = getAuctionDisplayStatus(auction.status, auction.startTime, auction.endTime);
+  const isActive = displayStatus === 'active';
+  const isUpcoming = displayStatus === 'upcoming';
+  const isClosed = displayStatus === 'closed';
+  const isPaused = displayStatus === 'paused';
+  const isDraft = displayStatus === 'draft';
 
   return (
     <div
-      onClick={() => nav(`/auction/${auction.id}`)}
+      onClick={() => onClick ? onClick() : nav(`${ROUTES.AUCTION_DETAIL}/${auction.id}`)}
       className="group bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer active:scale-[0.98]"
     >
       {/* Image */}
@@ -31,6 +41,8 @@ export default function AuctionCard({ auction }: { auction: Auction }) {
         <div className="absolute top-3 left-3">
           {isActive && <span className="badge-active text-[11px] shadow-sm">● Live</span>}
           {isUpcoming && <span className="badge-upcoming text-[11px] shadow-sm">◷ Soon</span>}
+          {isPaused && <span className="bg-amber-500/90 text-white text-[11px] shadow-sm rounded-full px-2 py-0.5">Paused</span>}
+          {isDraft && <span className="bg-slate-600 text-white text-[11px] shadow-sm rounded-full px-2 py-0.5">Draft</span>}
           {isClosed && <span className="badge-closed text-[11px] shadow-sm">✓ Ended</span>}
         </div>
 
@@ -40,9 +52,9 @@ export default function AuctionCard({ auction }: { auction: Auction }) {
             <span className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md">
               🏆 Won: {auction.lowestUniqueBid.toFixed(1)} ETB
             </span>
-          ) : isActive ? (
+          ) : (isActive || isUpcoming) ? (
             <div className="bg-slate-900/80 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
-              <CountdownTimer endTime={auction.endTime} status={auction.status} />
+              <CountdownTimer endTime={auction.endTime} status={auction.status} startTime={auction.startTime} />
             </div>
           ) : null}
         </div>
@@ -57,9 +69,16 @@ export default function AuctionCard({ auction }: { auction: Auction }) {
 
       {/* Body */}
       <div className="p-4 space-y-3">
-        <h3 className="font-black text-slate-900 text-sm leading-tight line-clamp-2 group-hover:text-blue-600 transition-colors">
-          {auction.title}
-        </h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-black text-slate-900 text-sm leading-tight line-clamp-2 group-hover:text-blue-600 transition-colors">
+            {auction.title}
+          </h3>
+          {auction.productName && (
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+              {auction.productName}
+            </span>
+          )}
+        </div>
 
         {/* Price row */}
         <div className="flex items-center justify-between">

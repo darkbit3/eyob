@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, ArrowRight } from 'lucide-react';
+import { ROUTES } from '../../utils/routes';
 
 export default function ResetPassword() {
   const nav = useNavigate();
@@ -9,7 +10,7 @@ export default function ResetPassword() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    nav('/login');
+    nav(ROUTES.LOGIN, { replace: true });
   }
 
   return (

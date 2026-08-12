@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { ROUTES } from '../utils/routes';
 import NotificationDropdown from '../components/NotificationDropdown';
 import {
   Gavel, LayoutDashboard, Wallet, LogOut, ShieldCheck,
   Sparkles, Coins, History, Home, Search, Trophy,
-  Download, Smartphone, CheckCircle2
+  Download, Smartphone, CheckCircle2, Bell
 } from 'lucide-react';
 
 export default function CustomerLayout() {
@@ -20,7 +21,7 @@ export default function CustomerLayout() {
 
   function logout() {
     setCurrentUser(null);
-    nav('/login');
+    nav(ROUTES.LOGIN);
   }
 
   function handleInstallApp() {
@@ -45,18 +46,18 @@ export default function CustomerLayout() {
   }
 
   const desktopLinks = [
-    { to: '/dashboard', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard' },
-    { to: '/auctions', icon: <Gavel className="w-4 h-4" />, label: 'Browse Auctions' },
-    { to: '/wallet', icon: <Wallet className="w-4 h-4" />, label: 'Wallet & Credits' },
-    { to: '/winner-verification', icon: <ShieldCheck className="w-4 h-4" />, label: 'Fairness Audit' },
+    { to: ROUTES.DASHBOARD,      icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard' },
+    { to: ROUTES.AUCTIONS,       icon: <Gavel className="w-4 h-4" />,           label: 'Browse Auctions' },
+    { to: ROUTES.WALLET,         icon: <Wallet className="w-4 h-4" />,          label: 'Wallet' },
+    { to: ROUTES.FAIRNESS_AUDIT, icon: <ShieldCheck className="w-4 h-4" />,     label: 'Fairness Audit' },
   ];
 
   const mobileNavTabs = [
-    { to: '/dashboard', icon: Home, label: 'Home' },
-    { to: '/auctions', icon: Search, label: 'Auctions' },
-    { to: '/bids', icon: History, label: 'My Bids', badge: userBidsCount },
-    { to: '/wallet', icon: Wallet, label: 'Wallet' },
-    { to: '/winner-verification', icon: Trophy, label: 'Audit' },
+    { to: ROUTES.DASHBOARD,      icon: Home,    label: 'Home' },
+    { to: ROUTES.AUCTIONS,       icon: Search,  label: 'Auctions' },
+    { to: ROUTES.MY_BIDS,        icon: History, label: 'My Bids', badge: userBidsCount },
+    { to: ROUTES.NOTIFICATIONS,  icon: Bell,    label: 'Alerts' },
+    { to: ROUTES.FAIRNESS_AUDIT, icon: Trophy,  label: 'Audit' },
   ];
 
   return (
@@ -74,7 +75,7 @@ export default function CustomerLayout() {
           <div className="flex items-center justify-between h-16">
 
             {/* Brand */}
-            <Link to="/dashboard" className="flex items-center gap-3 group">
+            <Link to={ROUTES.DASHBOARD} className="flex items-center gap-3 group">
               <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-md shadow-emerald-600/30 group-hover:scale-105 transition-transform duration-300">
                 <Gavel className="w-5 h-5 text-white" />
               </div>
@@ -101,18 +102,18 @@ export default function CustomerLayout() {
             {/* Right Side Actions */}
             <div className="flex items-center gap-2 sm:gap-3">
               {/* Credit Pill */}
-              <Link to="/wallet" className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-1.5 rounded-full transition-all duration-300">
+              <Link to={ROUTES.WALLET} className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-1.5 rounded-full transition-all duration-300">
                 <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-xs">
                   <Coins className="w-3 h-3" />
                 </div>
                 <div className="text-left leading-none">
-                  <span className="text-[9px] text-emerald-700 font-bold block uppercase">Credits</span>
-                  <span className="text-xs font-black text-emerald-900">{currentUser?.credits ?? 0}</span>
+                  <span className="text-[9px] text-emerald-700 font-bold block uppercase">Balance</span>
+                  <span className="text-xs font-black text-emerald-900">{(currentUser?.walletBalance ?? 0).toLocaleString()}</span>
                 </div>
               </Link>
 
               {/* My Bids Icon — desktop only */}
-              <Link to="/bids"
+              <Link to={ROUTES.MY_BIDS}
                 className="hidden md:flex relative p-2.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors items-center justify-center"
                 title="My Bids">
                 <History className="w-5 h-5" />
@@ -164,9 +165,9 @@ export default function CustomerLayout() {
         <div className="w-full px-4 sm:px-8 lg:px-12 text-center sm:flex sm:items-center sm:justify-between text-xs text-slate-500 font-medium">
           <p>© {new Date().getFullYear()} BidLow Auction Systems. All rights reserved.</p>
           <div className="flex items-center justify-center gap-4 mt-3 sm:mt-0">
-            <Link to="/winner-verification" className="hover:text-emerald-600 transition-colors">Provably Fair Algorithm</Link>
+            <Link to={ROUTES.FAIRNESS_AUDIT} className="hover:text-emerald-600 transition-colors">Provably Fair Algorithm</Link>
             <span>•</span>
-            <Link to="/auctions" className="hover:text-emerald-600 transition-colors">Live Auctions</Link>
+            <Link to={ROUTES.AUCTIONS} className="hover:text-emerald-600 transition-colors">Live Auctions</Link>
           </div>
         </div>
       </footer>
@@ -230,10 +231,6 @@ export default function CustomerLayout() {
                   <ShieldCheck className="w-3 h-3" /> Admin
                 </Link>
               )}
-              <div className="flex items-center gap-1 bg-white border border-emerald-200 px-2 py-1 rounded-full">
-                <Coins className="w-3 h-3 text-emerald-600" />
-                <span className="text-[10px] font-black text-emerald-800">{currentUser?.credits ?? 0}</span>
-              </div>
               <button onClick={logout}
                 className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
                 <LogOut className="w-3.5 h-3.5" />

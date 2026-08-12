@@ -1,116 +1,323 @@
-import { useApp } from '../../context/AppContext';
-import AuctionCard from '../../components/AuctionCard';
 import { Link } from 'react-router-dom';
-import { Gavel, Wallet, ShieldCheck, Sparkles, Trophy, ArrowRight, Zap, TrendingDown } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { ROUTES } from '../../utils/routes';
+import CountdownTimer from '../../components/CountdownTimer';
+import { formatCurrency, formatDate } from '../../utils/countdown';
+import {
+  Wallet, Trophy, Bell, ArrowRight, ArrowUpRight,
+  Gavel, History, TrendingDown, Users,
+} from 'lucide-react';
 
 export default function Dashboard() {
-  const { currentUser, auctions, bids } = useApp();
+  const {
+    currentUser,
+    auctions,
+    bids,
+    transactions,
+    notifications,
+    markNotificationRead,
+  } = useApp();
 
-  const activeAuctions = auctions.filter(a => a.status === 'active');
-  const userBidsCount = bids.filter(b => b.bidderId === currentUser?.id).length;
+  const activeAuctions  = auctions.filter(a => a.status === 'active');
+  const upcomingAuctions = auctions.filter(a => a.status === 'upcoming');
+  const closedAuctions  = auctions.filter(a => a.status === 'closed').slice(0, 5);
+
+  const myBids = bids.filter(b => b.bidderId === currentUser?.id);
+  const myTx   = transactions.filter(t => t.userId === currentUser?.id).slice(0, 5);
+  const unread = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="space-y-6 font-sans w-full">
+    <div className="space-y-6 font-sans pb-10">
 
-      {/* ── HERO BANNER (Bold Green & White) ─────────────────────────────────── */}
-      <div className="relative rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 text-white overflow-hidden shadow-xl border border-emerald-800/40">
-        {/* Decorative green blobs */}
-        <div className="absolute -right-12 -bottom-12 w-80 h-80 bg-emerald-600/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute right-1/3 -top-8 w-56 h-56 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 p-6 sm:p-10 md:p-12 space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 text-xs font-black text-emerald-300">
-            <Sparkles className="w-3.5 h-3.5" />
-            Ethiopia's Lowest Unique Bid Marketplace
-          </div>
-
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-            Win Premium Goods at{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300">
-              Fractional Prices
-            </span>
-          </h1>
-
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl">
-            Place strategic lowest unique bids on laptops, smartphones, motorbikes, and appliances. Every bid is backed by an auditable provably fair algorithm.
-          </p>
-
-          <div className="flex flex-col xs:flex-row gap-3 pt-2">
-            <Link to="/auctions" className="btn-primary flex items-center justify-center gap-2 text-sm py-3 px-6 shadow-lg shadow-emerald-600/30">
-              <Zap className="w-4 h-4 fill-white" /> Explore Live Auctions
-            </Link>
-            <Link to="/wallet" className="btn-secondary flex items-center justify-center gap-2 text-sm py-3 px-6">
-              <Wallet className="w-4 h-4 text-emerald-600" /> Buy Credits
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* ── STATS ROW ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        {[
-          { icon: <Wallet className="w-5 h-5 text-emerald-600" />, label: 'Credits', value: `${currentUser?.credits ?? 0}`, bg: 'bg-emerald-50' },
-          { icon: <Gavel className="w-5 h-5 text-emerald-600" />, label: 'My Bids', value: `${userBidsCount}`, bg: 'bg-emerald-50' },
-          { icon: <Trophy className="w-5 h-5 text-amber-500" />, label: 'Auctions Won', value: `${currentUser?.wonAuctions?.length ?? 0}`, bg: 'bg-amber-50' },
-          { icon: <ShieldCheck className="w-5 h-5 text-emerald-600" />, label: 'Verified', value: 'SHA-256', bg: 'bg-emerald-50' },
-        ].map(({ icon, label, value, bg }) => (
-          <div key={label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3.5 shadow-sm">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg} shrink-0`}>
-              {icon}
+      {/* ── Welcome Banner ──────────────────────────────────────────────────── */}
+      <div className="relative rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 text-white p-6 sm:p-8 overflow-hidden shadow-xl border border-emerald-800/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-2xl border-2 border-emerald-400 shadow-md">
+              {currentUser?.name?.charAt(0) ?? 'U'}
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-              <p className="text-lg sm:text-xl font-black text-slate-900 leading-tight">{value}</p>
-            </div>
+            <span className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-900" />
           </div>
-        ))}
-      </div>
-
-      {/* ── QUICK ACTIONS (Mobile) ────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3 sm:hidden">
-        {[
-          { to: '/auctions', icon: <TrendingDown className="w-5 h-5 text-emerald-600" />, label: 'Browse', bg: 'bg-emerald-50' },
-          { to: '/wallet', icon: <Wallet className="w-5 h-5 text-emerald-600" />, label: 'Wallet', bg: 'bg-emerald-50' },
-          { to: '/winner-verification', icon: <ShieldCheck className="w-5 h-5 text-emerald-600" />, label: 'Audit', bg: 'bg-emerald-50' },
-        ].map(({ to, icon, label, bg }) => (
-          <Link key={to} to={to}
-            className={`${bg} rounded-2xl p-3.5 flex flex-col items-center gap-1.5 border border-emerald-100 active:scale-95 transition-transform`}>
-            {icon}
-            <span className="text-xs font-black text-slate-800">{label}</span>
-          </Link>
-        ))}
-      </div>
-
-      {/* ── LIVE AUCTIONS (Full Width Grid) ─────────────────────────────── */}
-      <div className="space-y-4 pt-2">
-        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Active Live Auctions</h2>
-            <p className="text-slate-500 text-xs font-medium mt-0.5">Place your unique bid before the timer expires</p>
+            <h1 className="text-xl sm:text-3xl font-black tracking-tight">
+              Welcome back, {currentUser?.name ?? 'Customer'}!
+            </h1>
+            <p className="text-slate-300 text-xs sm:text-sm mt-1">
+              Member since {currentUser?.joinedAt ?? '2026'} • Account Verified
+            </p>
           </div>
-          <Link to="/auctions" className="flex items-center gap-1 text-xs font-black text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200 hover:bg-emerald-100 transition-colors">
-            View All ({auctions.length}) <ArrowRight className="w-3.5 h-3.5" />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link to={ROUTES.NOTIFICATIONS} className="relative bg-slate-800/80 border border-slate-700 rounded-xl p-3 flex items-center gap-2 hover:bg-slate-700/80 transition-colors">
+            <Bell className="w-5 h-5 text-emerald-400" />
+            <span className="text-xs font-bold text-slate-200">{unread} Unread</span>
+            {unread > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center">
+                {unread}
+              </span>
+            )}
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Wallet + Recent Transactions ────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <span className="text-xs font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Wallet className="w-4 h-4 text-emerald-600" /> Wallet
+            </span>
+            <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Active</span>
+          </div>
+          <div className="space-y-2">
+            <p className="text-3xl sm:text-4xl font-black text-slate-900">
+              {(currentUser?.walletBalance ?? 0).toLocaleString()}
+              <span className="text-lg font-bold text-slate-500 ml-1">ETB</span>
+            </p>
+          </div>
+          <Link to={ROUTES.WALLET} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 text-center transition-colors block">
+            Manage Wallet
           </Link>
         </div>
 
-        {/* Mobile horizontal scroll */}
-        <div className="sm:hidden -mx-4 px-4">
-          <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style={{ scrollbarWidth: 'none' }}>
-            {activeAuctions.map(auction => (
-              <div key={auction.id} className="snap-start shrink-0 w-72">
-                <AuctionCard auction={auction} />
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <History className="w-4 h-4 text-emerald-600" /> Recent Transactions
+            </h3>
+            <Link to={ROUTES.WALLET} className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
+              View All <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <div className="divide-y divide-slate-100 text-xs">
+            {myTx.length > 0 ? myTx.map(t => (
+              <div key={t.id} className="py-2.5 flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-slate-900">{t.description}</p>
+                  <span className="text-[10px] text-slate-400">{formatDate(t.timestamp)}</span>
+                </div>
+                <span className={`font-mono font-bold text-sm ${t.amount >= 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                  {t.amount >= 0 ? `+${t.amount}` : t.amount} ETB
+                </span>
+              </div>
+            )) : (
+              <div className="py-6 text-center text-slate-400">No transactions yet.</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Active Auctions ─────────────────────────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+            </span>
+            Live Auctions ({activeAuctions.length})
+          </h2>
+          <Link to={ROUTES.AUCTIONS} className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
+            View All <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {activeAuctions.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {activeAuctions.map(a => (
+              <div key={a.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:border-emerald-300 hover:shadow-md transition-all">
+                <div className="relative h-40 bg-slate-100">
+                  <img src={a.image} alt={a.title} className="w-full h-full object-cover"
+                    onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80'; }} />
+                  <div className="absolute top-2 right-2 bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
+                    <CountdownTimer endTime={a.endTime} status={a.status} />
+                  </div>
+                </div>
+                <div className="p-4 space-y-3">
+                  <h3 className="font-bold text-slate-900 text-sm truncate">{a.title}</h3>
+                  <div className="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Retail</span>
+                      <span className="font-bold text-slate-700">{formatCurrency(a.retailValue)}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-400 block text-[10px]">Bid Range</span>
+                      <span className="font-bold text-emerald-600">{a.minBid}–{a.maxBid} ETB</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span className="flex items-center gap-1"><Users className="w-3 h-3" />{a.totalParticipants}</span>
+                    <span className="flex items-center gap-1"><TrendingDown className="w-3 h-3" />{a.totalBids} bids</span>
+                  </div>
+                  <Link to={`${ROUTES.AUCTION_DETAIL}/${a.id}`}
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl text-center transition-colors block">
+                    Place Bid Now
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 bg-white border border-slate-200 rounded-2xl text-center text-slate-400 text-sm">
+            No active auctions right now.
+          </div>
+        )}
+      </div>
+
+      {/* ── Upcoming Auctions ──────────────────────────────────────────────── */}
+      {upcomingAuctions.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-black text-slate-900 border-b border-slate-200 pb-2">
+            Upcoming Auctions ({upcomingAuctions.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {upcomingAuctions.map(a => (
+              <div key={a.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3">
+                <img src={a.image} alt={a.title} className="w-14 h-14 object-cover rounded-xl shrink-0"
+                  onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=200&q=80'; }} />
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm truncate">{a.title}</h4>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">Starts: {formatDate(a.startTime)}</p>
+                  <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded mt-1 inline-block">Upcoming</span>
+                </div>
               </div>
             ))}
           </div>
         </div>
+      )}
 
-        {/* Desktop full width grid */}
-        <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {activeAuctions.map(auction => (
-            <AuctionCard key={auction.id} auction={auction} />
-          ))}
+      {/* ── Recently Closed ────────────────────────────────────────────────── */}
+      {closedAuctions.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-black text-slate-900 border-b border-slate-200 pb-2">
+            Recently Closed
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {closedAuctions.map(a => (
+              <div key={a.id} className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  <img src={a.image} alt={a.title} className="w-12 h-12 object-cover rounded-xl shrink-0"
+                    onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=200&q=80'; }} />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-bold text-slate-900 text-sm truncate">{a.title}</h4>
+                    <p className="text-xs text-slate-500">Retail: {formatCurrency(a.retailValue)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                  <span className="font-mono text-emerald-700 font-bold">
+                    {a.lowestUniqueBid ? `Won: ${a.lowestUniqueBid} ETB` : 'Closed'}
+                  </span>
+                  <Link to={ROUTES.FAIRNESS_AUDIT} className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1">
+                    Verify <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* ── My Bid History ─────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+            <Gavel className="w-5 h-5 text-emerald-600" /> My Bids ({myBids.length})
+          </h2>
+          <Link to={ROUTES.MY_BIDS} className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
+            View All <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+        {myBids.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
+                <tr>
+                  <th className="p-3">Auction</th>
+                  <th className="p-3">Bid Amount</th>
+                  <th className="p-3">Placed At</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {myBids.slice(0, 5).map(b => {
+                  const auction = auctions.find(a => a.id === b.auctionId);
+                  return (
+                    <tr key={b.id} className="hover:bg-slate-50">
+                      <td className="p-3 font-bold text-slate-900">{auction?.title ?? b.auctionId}</td>
+                      <td className="p-3 font-mono font-bold text-emerald-600">{b.amount} ETB</td>
+                      <td className="p-3 text-slate-400 font-mono text-[11px]">{formatDate(b.timestamp)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="py-6 text-center text-slate-400 text-sm">
+            No bids placed yet.{' '}
+            <Link to={ROUTES.AUCTIONS} className="text-emerald-600 font-bold hover:underline">Browse auctions</Link>
+          </div>
+        )}
       </div>
+
+      {/* ── Notifications ──────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+            <Bell className="w-5 h-5 text-emerald-600" /> Notifications
+          </h2>
+          <Link to={ROUTES.NOTIFICATIONS} className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
+            View All <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+        {notifications.length > 0 ? (
+          <div className="divide-y divide-slate-100 text-xs">
+            {notifications.slice(0, 5).map(n => (
+              <div key={n.id} className={`py-3 flex items-start justify-between gap-4 ${n.read ? 'opacity-60' : ''}`}>
+                <div>
+                  <h4 className="text-slate-900 font-bold">{n.title}</h4>
+                  <p className="text-slate-600 mt-0.5">{n.message}</p>
+                  <span className="text-[10px] text-slate-400 block mt-1">{formatDate(n.timestamp)}</span>
+                </div>
+                {!n.read && (
+                  <button onClick={() => markNotificationRead(n.id)}
+                    className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg shrink-0 text-[10px] font-bold border border-emerald-200">
+                    Mark read
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-6 text-center text-slate-400 text-sm">No notifications.</div>
+        )}
+      </div>
+
+      {/* ── My Won Auctions ────────────────────────────────────────────────── */}
+      {currentUser?.wonAuctions && currentUser.wonAuctions.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-500" /> Won Auctions ({currentUser.wonAuctions.length})
+          </h2>
+          <div className="divide-y divide-slate-100 text-xs">
+            {currentUser.wonAuctions.map((auctionId: string) => {
+              const a = auctions.find(x => x.id === auctionId);
+              if (!a) return null;
+              return (
+                <div key={auctionId} className="py-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <img src={a.image} alt={a.title} className="w-10 h-10 object-cover rounded-lg shrink-0" />
+                    <span className="font-bold text-slate-900">{a.title}</span>
+                  </div>
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full">Won</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
