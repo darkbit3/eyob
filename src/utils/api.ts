@@ -1,7 +1,13 @@
 // ─── BidLow API Client ────────────────────────────────────────────────────────
-// All requests go through the Vite proxy → http://localhost:3000
+// In dev: requests go through the Vite proxy → http://localhost:3000
+// In production: requests go directly to the backend URL via VITE_API_URL
 
-const BASE = '/api';
+const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
+const BASE =
+  (import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/api`
+    : null) ??
+  (/localhost|127\.0\.0\.1/.test(runtimeHost) ? '/api' : 'https://eyob-backend.onrender.com/api');
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 export function getToken(): string | null {
@@ -29,12 +35,27 @@ async function request<T>(
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
-  const json = await res.json();
+  const contentType = res.headers.get('content-type') || '';
+  let body: any;
+  if (contentType.includes('application/json')) {
+    body = await res.json();
+  } else {
+    const text = await res.text();
+    if (text.trim().startsWith('<')) {
+      // Got an HTML page — likely wrong URL or proxy not running
+      throw new Error(`Server returned an unexpected HTML response (status ${res.status}). Check the API URL configuration.`);
+    }
+    try {
+      body = JSON.parse(text);
+    } catch {
+      throw new Error(`Unexpected response from server (status ${res.status})`);
+    }
+  }
 
   if (!res.ok) {
-    throw new Error(json?.message || `Request failed (${res.status})`);
+    throw new Error(body?.message || `Request failed (${res.status})`);
   }
-  return json;
+  return body;
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
