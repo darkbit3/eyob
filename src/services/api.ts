@@ -1,4 +1,9 @@
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:3000/api';
+const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
+const API_BASE_URL =
+  (import.meta as any).env?.VITE_API_BASE ??
+  (runtimeHost && /localhost|127\.0\.0\.1/.test(runtimeHost)
+    ? 'http://localhost:3000/api'
+    : 'https://eyob-backend.onrender.com/api');
 
 export function getAuthToken(): string | null {
   return localStorage.getItem('bidlow_token');
@@ -28,13 +33,25 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers,
   });
 
-  const json = await response.json();
+  const contentType = response.headers.get('content-type') || '';
+  let body: any;
 
-  if (!response.ok) {
-    throw new Error(json.message || 'API request failed');
+  if (contentType.includes('application/json')) {
+    body = await response.json();
+  } else {
+    body = await response.text();
+    // If the server returned HTML (like a 404 page), surface a clear error
+    if (typeof body === 'string' && body.trim().startsWith('<')) {
+      throw new Error(`Non-JSON response (status ${response.status}): ${body.slice(0, 200)}`);
+    }
   }
 
-  return json.data as T;
+  if (!response.ok) {
+    const message = body?.message || `API request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return body.data as T;
 }
 
 export interface UserProfile {
