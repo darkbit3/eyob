@@ -1,5 +1,5 @@
 export type AuctionStatus = 'active' | 'upcoming' | 'closed' | 'paused' | 'draft';
-export type UserRole = 'admin' | 'customer' | 'moderator';
+export type UserRole = 'admin' | 'customer';
 
 export interface User {
   id: string;
