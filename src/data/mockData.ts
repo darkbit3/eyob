@@ -38,6 +38,7 @@ export interface Auction {
   description: string;
   image: string;
   retailValue: number;
+  bidPerCost?: number;
   category: string;
   status: AuctionStatus;
   startTime: string;

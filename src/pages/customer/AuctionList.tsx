@@ -489,8 +489,8 @@ export default function AuctionList() {
                     <p className="text-sm text-slate-600">{selectedAuction.description}</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-3xl bg-slate-100 p-4 text-center">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Retail Value</p>
-                        <p className="text-sm font-bold text-slate-900 mt-2">{formatCurrency(selectedAuction.retailValue)}</p>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Bid Per Cost</p>
+                        <p className="text-sm font-bold text-slate-900 mt-2">{formatCurrency(selectedAuction.bidPerCost || selectedAuction.retailValue)}</p>
                       </div>
                       <div className="rounded-3xl bg-slate-100 p-4 text-center">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Bid Range</p>

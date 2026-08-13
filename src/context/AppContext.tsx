@@ -345,7 +345,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const id = `a0${auctions.length + 1}`;
     const newAuction: Auction = { ...auctionData, id, totalParticipants: 0, totalBids: 0 };
     setAuctions(prev => [newAuction, ...prev]);
-    addAuditLog('Created Auction', newAuction.title, `Category: ${newAuction.category}, Retail Value: ${newAuction.retailValue} ETB`);
+    addAuditLog('Created Auction', newAuction.title, `Category: ${newAuction.category}, Bid Per Cost: ${newAuction.bidPerCost || newAuction.retailValue} ETB`);
   }
 
   function updateAuction(id: string, updates: Partial<Auction>) {

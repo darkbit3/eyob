@@ -82,7 +82,7 @@ export default function WinnerVerification() {
                 <p className="text-sm text-green-700 font-medium">🏆 Auction Winner</p>
                 <p className="text-2xl font-bold text-green-900">{winner.maskedBidderId}</p>
                 <p className="text-sm text-green-700">Winning bid: <strong>{lowestUnique} ETB</strong> (Lowest Unique)</p>
-                <p className="text-xs text-green-600 mt-0.5">Retail value: {formatCurrency(auction.retailValue)}</p>
+                <p className="text-xs text-green-600 mt-0.5">Bid per cost: {formatCurrency(auction.bidPerCost || auction.retailValue)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-full font-bold text-sm">

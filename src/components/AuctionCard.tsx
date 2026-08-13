@@ -83,8 +83,8 @@ export default function AuctionCard({
         {/* Price row */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Retail Value</p>
-            <p className="text-sm font-extrabold text-slate-800">{formatCurrency(auction.retailValue)}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Bid Per Cost</p>
+            <p className="text-sm font-extrabold text-slate-800">{formatCurrency(auction.bidPerCost || auction.retailValue)}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] font-bold text-slate-400 uppercase">Bid Range</p>

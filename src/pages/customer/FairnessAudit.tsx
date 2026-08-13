@@ -251,7 +251,7 @@ export default function FairnessAudit() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-shrink-0 text-center">
                 {[
-                  { label: 'Retail Value', value: formatCurrency(auction.retailValue), color: 'text-slate-900' },
+                  { label: 'Bid Per Cost', value: formatCurrency(auction.bidPerCost || auction.retailValue), color: 'text-slate-900' },
                   { label: 'Bid Range', value: `${auction.minBid}–${auction.maxBid} ETB`, color: 'text-blue-600' },
                   { label: 'Participants', value: auction.totalParticipants, color: 'text-slate-900' },
                   { label: 'Total Bids', value: rawBids.length, color: 'text-slate-900' },
@@ -304,7 +304,7 @@ export default function FairnessAudit() {
                       <span className="text-emerald-600 ml-2 text-xs">(Lowest Unique Bid)</span>
                     </p>
                     <p className="text-xs text-emerald-600 mt-0.5">
-                      Placed at {formatDate(winnerBid.timestamp)} • Retail value saved: {formatCurrency(auction.retailValue)}
+                      Placed at {formatDate(winnerBid.timestamp)} • Bid per cost value: {formatCurrency(auction.bidPerCost || auction.retailValue)}
                     </p>
                   </div>
                 </div>
