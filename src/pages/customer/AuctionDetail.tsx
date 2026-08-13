@@ -37,12 +37,38 @@ const validateBidAmount = (value: string): string => {
 
 export default function AuctionDetail() {
   const { id } = useParams<{ id: string }>();
-  const { auctions, products, bids, users, currentUser, placeBid, setAuctions } = useApp();
+  const { auctions, products, users, currentUser, placeBid, setAuctions } = useApp();
   const nav = useNavigate();
 
   const auction = auctions.find(a => a.id === id);
   const linkedProduct = auction?.productId ? products.find(p => p.id === auction.productId) : undefined;
-  const auctionBids = bids.filter(b => b.auctionId === id);
+
+  // ── Live bids fetched from API ────────────────────────────────────────────
+  const [auctionBids, setAuctionBids] = useState<Bid[]>([]);
+  const [bidsLoading, setBidsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    setBidsLoading(true);
+    bidsApi.forAuction(id)
+      .then(res => {
+        if (cancelled) return;
+        setAuctionBids((res.data || []).map((b: any) => ({
+          id: b.id,
+          auctionId: b.auction_id ?? id,
+          bidderId: b.bidder_id ?? b.bidderId ?? '',
+          maskedBidderId: b.masked_bidder_id ?? b.maskedBidderId ?? '',
+          amount: Number(b.amount ?? 0),
+          timestamp: b.created_at ?? b.timestamp ?? new Date().toISOString(),
+          isDuplicate: Boolean(b.is_duplicate ?? false),
+          isLowestUnique: Boolean(b.is_lowest_unique ?? false),
+        })));
+      })
+      .catch(() => { if (!cancelled) setAuctionBids([]); })
+      .finally(() => { if (!cancelled) setBidsLoading(false); });
+    return () => { cancelled = true; };
+  }, [id]);
 
   const [bidAmount, setBidAmount] = useState<string>('');
   const [imgIdx, setImgIdx] = useState(0);
@@ -57,18 +83,15 @@ export default function AuctionDetail() {
   const [productTimer, setProductTimer] = useState<number>(5);
 
   // ── SCAN ANIMATION STATE ─────────────────────────────────────────────────
-  // How many rows are visible yet (slide-in effect)
   const [revealCount, setRevealCount] = useState(0);
-  // Per-row mark state
   const [rowMarks, setRowMarks] = useState<ScanMark[]>([]);
-  // Which sub-step within player_scan we're on
   const [scanSubStep, setScanSubStep] = useState<'reveal' | 'mark_red' | 'mark_green' | 'zoom_winner'>('reveal');
 
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const images = [auction?.image ?? '', auction?.image ?? '', auction?.image ?? ''];
 
-  // ── BID ANALYSIS ─────────────────────────────────────────────────────────
+  // ── BID ANALYSIS (derived from live bids) ────────────────────────────────
   const amountCounts: Record<number, number> = {};
   auctionBids.forEach(b => {
     amountCounts[b.amount] = (amountCounts[b.amount] || 0) + 1;
@@ -76,7 +99,12 @@ export default function AuctionDetail() {
   const uniqueAmounts = Object.keys(amountCounts).map(Number).filter(amt => amountCounts[amt] === 1).sort((a, b) => a - b);
   const lowestUniqueAmount = uniqueAmounts.length > 0 ? uniqueAmounts[0] : null;
   const winningBid = lowestUniqueAmount ? auctionBids.find(b => b.amount === lowestUniqueAmount) : null;
-  const winningUser = winningBid ? users.find(u => u.id === winningBid.bidderId) : (users[1] ?? users[0]);
+  const winningUser = winningBid ? users.find(u => u.id === winningBid.bidderId) ?? null : null;
+
+  // ── COMPUTE REAL STATS FROM LIVE BIDS ──────────────────────────────────
+  const participantCount = new Set(auctionBids.map(b => b.bidderId)).size;
+  const totalBidsCount = auctionBids.length;
+  const uniqueBidsCount = uniqueAmounts.length;
 
   // ── PHASE 1 TIMER ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -207,6 +235,19 @@ export default function AuctionDetail() {
         setBidSubmitText('You placed bet');
         setBidResult({ ok: true, msg: `Bid of ${amount.toFixed(1)} ETB placed successfully!` });
         setBidAmount('');
+        // Re-fetch bids so stats update instantly
+        bidsApi.forAuction(auction!.id)
+          .then(res => setAuctionBids((res.data || []).map((b: any) => ({
+            id: b.id,
+            auctionId: b.auction_id ?? auction!.id,
+            bidderId: b.bidder_id ?? b.bidderId ?? '',
+            maskedBidderId: b.masked_bidder_id ?? b.maskedBidderId ?? '',
+            amount: Number(b.amount ?? 0),
+            timestamp: b.created_at ?? b.timestamp ?? new Date().toISOString(),
+            isDuplicate: Boolean(b.is_duplicate ?? false),
+            isLowestUnique: Boolean(b.is_lowest_unique ?? false),
+          }))))
+          .catch(() => {});
       } else {
         setBidSubmitState('error');
         setBidSubmitText('Bid failed');
@@ -304,8 +345,17 @@ export default function AuctionDetail() {
             </div>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-600 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-            <span className="flex items-center gap-1.5 font-bold"><Users className="w-4 h-4 text-purple-600" /> {auction.totalParticipants} Participants</span>
-            <span className="flex items-center gap-1.5 font-bold"><TrendingDown className="w-4 h-4 text-blue-600" /> {auction.totalBids} Total Bids</span>
+            {bidsLoading ? (
+              <span className="flex items-center gap-1.5 font-bold text-slate-400">
+                <Loader2 className="w-4 h-4 animate-spin text-purple-600" /> Loading stats…
+              </span>
+            ) : (
+              <>
+                <span className="flex items-center gap-1.5 font-bold"><Users className="w-4 h-4 text-purple-600" /> {participantCount} Participants</span>
+                <span className="flex items-center gap-1.5 font-bold"><TrendingDown className="w-4 h-4 text-blue-600" /> {totalBidsCount} Total Bids</span>
+                <span className="flex items-center gap-1.5 font-bold"><CheckCircle className="w-4 h-4 text-emerald-600" /> {uniqueBidsCount} Unique Bids</span>
+              </>
+            )}
           </div>
 
           {!isClosed && (
