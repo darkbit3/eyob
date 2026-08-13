@@ -4,9 +4,11 @@ import { useApp } from '../../context/AppContext';
 import { ROUTES } from '../../utils/routes';
 import CountdownTimer from '../../components/CountdownTimer';
 import { formatCurrency, formatDate } from '../../utils/countdown';
+import { bidsApi } from '../../utils/api';
+import { Bid } from '../../data/mockData';
 import {
   ChevronLeft, Users, TrendingDown, Phone,
-  CheckCircle, AlertCircle, Gavel, Sparkles, Play, RefreshCw, Trophy, XCircle, Clock, Star
+  CheckCircle, AlertCircle, Gavel, Sparkles, Play, RefreshCw, Trophy, XCircle, Clock, Star, Loader2
 } from 'lucide-react';
 
 type ScanMark = 'idle' | 'scanning' | 'duplicate' | 'unique' | 'winner';
