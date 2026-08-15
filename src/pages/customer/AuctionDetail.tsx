@@ -270,24 +270,7 @@ export default function AuctionDetail() {
   // ── RENDER ───────────────────────────────────────────────────────────────
   return (
     <>
-      {bidSubmitState !== 'idle' && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-sm">
-          <div className="flex flex-col items-center justify-center gap-4 rounded-full bg-white/90 p-6 shadow-2xl ring-1 ring-slate-200">
-            {bidSubmitState === 'loading' ? (
-              <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
-            ) : bidSubmitState === 'success' ? (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                <CheckCircle className="h-9 w-9" />
-              </div>
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                <XCircle className="h-9 w-9" />
-              </div>
-            )}
-            <p className="text-center text-sm font-bold text-slate-800">{bidSubmitText}</p>
-          </div>
-        </div>
-      )}
+
 
       <div className="space-y-8 font-sans">
       {/* Top Bar */}
@@ -372,12 +355,22 @@ export default function AuctionDetail() {
                 <input type="number" value={bidAmount} onChange={e => setBidAmount(validateBidAmount(e.target.value))}
                   className="input-field flex-1 font-bold" placeholder={`Range: ${auction.minBid} – ${auction.maxBid} ETB`}
                   min={auction.minBid} max={auction.maxBid} />
-                <button type="submit" className="btn-primary whitespace-nowrap">Place Bid</button>
+                <button type="submit" disabled={bidSubmitState === 'loading'} className="btn-primary whitespace-nowrap disabled:opacity-60">
+                  {bidSubmitState === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Place Bid'}
+                </button>
               </form>
-              {bidResult && (
-                <div className={`flex items-center gap-2 text-xs font-bold p-3 rounded-xl ${bidResult.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
-                  {bidResult.ok ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-                  <span>{bidResult.msg}</span>
+
+              {/* Inline bid status — loading / success / error */}
+              {bidSubmitState !== 'idle' && (
+                <div className={`flex items-center gap-3 p-3 rounded-xl text-sm font-bold border ${
+                  bidSubmitState === 'loading' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                  bidSubmitState === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                  'bg-rose-50 text-rose-800 border-rose-200'
+                }`}>
+                  {bidSubmitState === 'loading' && <Loader2 className="w-5 h-5 animate-spin shrink-0" />}
+                  {bidSubmitState === 'success' && <CheckCircle className="w-5 h-5 shrink-0" />}
+                  {bidSubmitState === 'error'   && <AlertCircle className="w-5 h-5 shrink-0" />}
+                  <span>{bidSubmitText || (bidResult?.msg ?? '')}</span>
                 </div>
               )}
             </div>

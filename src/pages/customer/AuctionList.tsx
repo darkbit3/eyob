@@ -247,26 +247,6 @@ export default function AuctionList() {
         </div>
       )}
 
-      {/* Bid submit overlay */}
-      {bidSubmitState !== 'idle' && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-sm">
-          <div className="flex flex-col items-center justify-center gap-4 rounded-full bg-white/90 p-6 shadow-2xl ring-1 ring-slate-200">
-            {bidSubmitState === 'loading' ? (
-              <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
-            ) : bidSubmitState === 'success' ? (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                <CheckCircle className="h-9 w-9" />
-              </div>
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                <XCircle className="h-9 w-9" />
-              </div>
-            )}
-            <p className="text-center text-sm font-bold text-slate-800">{bidSubmitText}</p>
-          </div>
-        </div>
-      )}
-
       {/* Auction modal */}
       {selectedAuction && (
         <div
@@ -423,14 +403,26 @@ export default function AuctionList() {
                               value={bidAmount} onChange={e => setBidAmount(validateBidAmount(e.target.value))}
                               placeholder={`${selectedAuction.minBid} ETB`}
                               className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                            <button type="submit"
-                              className="rounded-3xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-500 transition">
-                              Place bid
+                            <button type="submit" disabled={bidSubmitState === 'loading'}
+                              className="rounded-3xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-500 transition disabled:opacity-60 flex items-center justify-center gap-2">
+                              {bidSubmitState === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Place bid'}
                             </button>
                           </div>
-                          {bidResult && (
-                            <p className={`text-sm ${bidResult.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{bidResult.msg}</p>
+
+                          {/* Inline bid status */}
+                          {bidSubmitState !== 'idle' && (
+                            <div className={`flex items-center gap-3 p-3 rounded-2xl text-sm font-bold border ${
+                              bidSubmitState === 'loading' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              bidSubmitState === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                              'bg-rose-50 text-rose-800 border-rose-200'
+                            }`}>
+                              {bidSubmitState === 'loading' && <Loader2 className="w-5 h-5 animate-spin shrink-0" />}
+                              {bidSubmitState === 'success' && <CheckCircle className="w-5 h-5 shrink-0" />}
+                              {bidSubmitState === 'error'   && <XCircle className="w-5 h-5 shrink-0" />}
+                              <span>{bidSubmitText || (bidResult?.msg ?? '')}</span>
+                            </div>
                           )}
+
                           <div className="grid gap-3 sm:grid-cols-2 text-sm text-slate-600">
                             {myLatestBid && <p>Your latest bid: {myLatestBid.amount.toFixed(1)} ETB</p>}
                           </div>
