@@ -150,6 +150,20 @@ export default function Wallet() {
   return (
     <div className="space-y-6 font-sans max-w-5xl mx-auto">
 
+      {/* ── Global Chapa verification banner ──────────────────────────── */}
+      {msg && !showModal && (
+        <div className={`p-4 rounded-2xl text-sm font-semibold flex items-center gap-2 border ${
+          msgType === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+          msgType === 'error'   ? 'bg-rose-50 text-rose-700 border-rose-200' :
+          'bg-blue-50 text-blue-700 border-blue-200'
+        }`}>
+          {msgType === 'success' && <CheckCircle className="w-5 h-5 shrink-0" />}
+          {msgType === 'error'   && <XCircle className="w-5 h-5 shrink-0" />}
+          {msgType === 'info'    && <Loader2 className="w-5 h-5 shrink-0 animate-spin" />}
+          {msg}
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">My Wallet</h1>
@@ -363,22 +377,21 @@ export default function Wallet() {
               </div>
             )}
 
-            {/* Additional Inputs */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Transaction / Reference ID
-                </label>
-                <input
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  type="text"
-                  placeholder="e.g. CBE-TXN-984210"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              {selectedMethod === 'Manual' && (
+            {/* Additional Inputs — Manual only */}
+            {selectedMethod === 'Manual' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Transaction / Reference ID <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    type="text"
+                    placeholder="e.g. CBE-TXN-984210"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Receipt Proof Image / URL <span className="text-rose-500">*</span>
@@ -391,24 +404,36 @@ export default function Wallet() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-500"
                   />
                 </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add any details for admin verification..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-500 h-16 resize-none"
-                />
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Notes (Optional)</label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any details for admin verification..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-500 h-16 resize-none"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Error / Success message */}
+            {/* Chapa info note */}
+            {selectedMethod === 'Chapa' && (
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-700 font-medium">
+                🔒 You'll be redirected to Chapa's secure checkout. Supports Telebirr, CBE Birr, Mobile Banking & Cards.
+                After payment, you'll return here automatically and your wallet will be credited instantly.
+              </div>
+            )}
+
+            {/* Status message */}
             {msg && (
-              <div className={`mt-4 p-3 rounded-xl text-xs font-semibold ${msg.includes('successfully') || msg.includes('submitted') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+              <div className={`mt-3 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+                msgType === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                msgType === 'error'   ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                'bg-blue-50 text-blue-700 border-blue-200'
+              }`}>
+                {msgType === 'success' && <CheckCircle className="w-4 h-4 shrink-0" />}
+                {msgType === 'error'   && <XCircle className="w-4 h-4 shrink-0" />}
+                {msgType === 'info'    && <Loader2 className="w-4 h-4 shrink-0 animate-spin" />}
                 {msg}
               </div>
             )}
@@ -417,7 +442,7 @@ export default function Wallet() {
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
               <button
                 type="button"
-                onClick={() => { setShowModal(false); setSelectedMethod(null); }}
+                onClick={() => { setShowModal(false); setSelectedMethod(null); setMsg(''); }}
                 className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
               >
                 Cancel
@@ -432,7 +457,12 @@ export default function Wallet() {
                     : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
                 } disabled:opacity-50`}
               >
-                {loading ? 'Processing...' : selectedMethod === 'Chapa' ? `Pay with Chapa (${amount || 0} ETB)` : 'Submit Deposit Proof'}
+                {loading
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…</>
+                  : selectedMethod === 'Chapa'
+                  ? <>Pay {amount || 0} ETB via Chapa <ExternalLink className="w-3.5 h-3.5" /></>
+                  : 'Submit Deposit Proof'
+                }
               </button>
             </div>
 
