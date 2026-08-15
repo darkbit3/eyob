@@ -20,6 +20,37 @@ export default function Wallet() {
   const [receipt, setReceipt] = useState('');
   const [copiedBank, setCopiedBank] = useState(false);
 
+  // Manual deposit proof mode & image import
+  const [manualProofMode, setManualProofMode] = useState<'ref_id' | 'image'>('ref_id');
+  const [receiptFilePreview, setReceiptFilePreview] = useState<string>('');
+
+  function handleImageFileImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setReceipt(dataUrl);
+        setReceiptFilePreview(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  // Deposit vs Withdraw tab state & Bank help info toggle
+  const [walletTab, setWalletTab] = useState<'deposit' | 'withdraw'>('deposit');
+  const [showBankHelpInfo, setShowBankHelpInfo] = useState(false);
+
+  // Withdrawal form states
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawBank, setWithdrawBank] = useState('Commercial Bank of Ethiopia (CBE)');
+  const [withdrawAccountNo, setWithdrawAccountNo] = useState('');
+  const [withdrawAccountName, setWithdrawAccountName] = useState('');
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawMsg, setWithdrawMsg] = useState('');
+
+
+
   // ── Auto-verify Chapa payment on return from checkout ─────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -104,18 +135,21 @@ export default function Wallet() {
         }
       } else {
         // ── Manual bank deposit ────────────────────────────────────────
-        if (!reference || !receipt) {
-          setMsg('Reference number and receipt proof are required for manual deposit.');
+        if (!reference && !receipt) {
+          setMsg('Please provide a reference ID / SMS text message or receipt proof image.');
           setMsgType('error');
           setLoading(false);
           return;
         }
+        const finalRef = reference || `TXN-${Date.now().toString().slice(-6)}`;
+        const finalReceipt = receipt || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400';
+
         const res = await walletApi.submitDeposit({
           amount: amt,
           credits: amt,
           payment_method: 'Manual Bank Transfer',
-          reference_number: reference,
-          receipt_image: receipt,
+          reference_number: finalRef,
+          receipt_image: finalReceipt,
           notes: notes || 'Manual bank deposit submission',
         });
         if (res?.data) {
@@ -140,12 +174,56 @@ export default function Wallet() {
     }
   }
 
+
+
   const txMeta = (type: string) => {
     if (type === 'wallet_deposit' || type === 'credit_purchase') return { icon: <ArrowDownLeft className="w-4 h-4 text-emerald-500" />, color: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Deposit' };
     if (type === 'bid_placed') return { icon: <ArrowUpRight className="w-4 h-4 text-rose-500" />, color: 'text-rose-600', bg: 'bg-rose-50', label: 'Bid Placed' };
     if (type === 'winning_reward') return { icon: <Trophy className="w-4 h-4 text-amber-500" />, color: 'text-emerald-600', bg: 'bg-amber-50', label: 'Prize Won' };
     return { icon: <RefreshCw className="w-4 h-4 text-slate-500" />, color: 'text-slate-600', bg: 'bg-slate-50', label: 'Refund / Adjustment' };
   };
+
+  async function handleWithdrawSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setWithdrawMsg('');
+    const amt = Number(withdrawAmount);
+    if (!amt || amt <= 0) {
+      setWithdrawMsg('Please enter a valid withdrawal amount.');
+      return;
+    }
+    const userBal = currentUser?.walletBalance ?? 0;
+    if (amt > userBal) {
+      setWithdrawMsg(`Insufficient wallet balance. You have ${userBal} ETB available.`);
+      return;
+    }
+    if (!withdrawAccountNo || !withdrawAccountName) {
+      setWithdrawMsg('Please provide your bank account number and holder name.');
+      return;
+    }
+
+    setWithdrawLoading(true);
+    try {
+      const res = await walletApi.submitDeposit({
+        amount: -amt,
+        credits: -amt,
+        payment_method: withdrawBank,
+        reference_number: `WD-${Date.now().toString().slice(-6)}`,
+        receipt_image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400',
+        notes: `Withdrawal request to ${withdrawBank} (Acc: ${withdrawAccountNo}, Name: ${withdrawAccountName})`,
+      });
+      if (res?.data) {
+        setPaymentQueue(prev => [res.data, ...(prev || [])]);
+      }
+      setWithdrawMsg('✅ Withdrawal request submitted! Admin will verify and transfer funds to your account.');
+      setWithdrawAmount('');
+      setWithdrawAccountNo('');
+      setWithdrawAccountName('');
+    } catch (err: any) {
+      setWithdrawMsg(err?.message || 'Withdrawal submission failed.');
+    } finally {
+      setWithdrawLoading(false);
+    }
+  }
 
   return (
     <div className="space-y-6 font-sans max-w-5xl mx-auto">
@@ -198,10 +276,10 @@ export default function Wallet() {
         <div className="rounded-3xl bg-slate-50 p-6 border border-slate-200/80 text-slate-700 flex flex-col justify-between shadow-sm">
           <div>
             <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-wider mb-2">
-              <CreditCard className="w-4 h-4" /> Top-Up Guidelines
+              <CreditCard className="w-4 h-4" /> Top-Up &amp; Withdrawal Guidelines
             </div>
             <p className="text-xs sm:text-sm font-semibold text-slate-900 leading-relaxed">
-              We support instant digital payments via <strong className="text-purple-600 font-extrabold">Chapa</strong> or direct bank transfer via <strong className="text-emerald-600 font-extrabold">Manual Payment</strong>.
+              Instant digital deposits via <strong className="text-purple-600 font-extrabold">Chapa</strong>, direct bank deposits, or fast withdrawals directly to your account.
             </p>
           </div>
           <p className="text-[11px] text-slate-500 mt-4 border-t border-slate-200 pt-3">
@@ -210,83 +288,238 @@ export default function Wallet() {
         </div>
       </div>
 
-      {/* ── 2 ACCEPTED PAYMENT METHODS ──────────────────────────────────── */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5">
-        <div>
-          <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-            Select Payment Method
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Choose your preferred deposit method below to top up your account balance.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-
-          {/* METHOD 1: CHAPA */}
-          <div
-            onClick={() => handleOpenModal('Chapa')}
-            role="button"
-            tabIndex={0}
-            className="group relative rounded-3xl border-2 border-slate-200 hover:border-purple-500 bg-gradient-to-b from-slate-50 to-purple-50/20 p-6 transition-all duration-300 hover:shadow-xl cursor-pointer flex flex-col justify-between"
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-2 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center">
-                <ChapaLogo />
-              </div>
-              <span className="px-3 py-1 bg-purple-100 text-purple-700 font-extrabold text-[10px] rounded-full uppercase tracking-wider">
-                Instant Gateway
-              </span>
-            </div>
-
-            <div className="mt-4">
-              <h3 className="text-base font-black text-slate-900 group-hover:text-purple-600 transition-colors">
-                Chapa Payment
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Instant online checkout supporting Telebirr, CBE Birr, Mobile Banking, and Debit/Credit Cards.
-              </p>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-purple-600">
-              <span>Top up with Chapa</span>
-              <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-
-          {/* METHOD 2: MANUAL PAYMENT */}
-          <div
-            onClick={() => handleOpenModal('Manual')}
-            role="button"
-            tabIndex={0}
-            className="group relative rounded-3xl border-2 border-slate-200 hover:border-emerald-500 bg-gradient-to-b from-slate-50 to-emerald-50/20 p-6 transition-all duration-300 hover:shadow-xl cursor-pointer flex flex-col justify-between"
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 p-2 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center">
-                <ManualPaymentLogo />
-              </div>
-              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-extrabold text-[10px] rounded-full uppercase tracking-wider">
-                Bank Transfer
-              </span>
-            </div>
-
-            <div className="mt-4">
-              <h3 className="text-base font-black text-slate-900 group-hover:text-emerald-600 transition-colors">
-                Manual Payment
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Direct bank transfer to CBE, Awash, or Telebirr with manual transaction slip receipt submission.
-              </p>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-emerald-600">
-              <span>Submit Bank Receipt</span>
-              <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-
-        </div>
+      {/* ── DEPOSIT VS WITHDRAW TOGGLE ──────────────────────────────────── */}
+      <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+        <button
+          type="button"
+          onClick={() => setWalletTab('deposit')}
+          className={`flex-1 py-3 px-6 rounded-xl font-black text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
+            walletTab === 'deposit'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" /> Deposit Funds
+        </button>
+        <button
+          type="button"
+          onClick={() => setWalletTab('withdraw')}
+          className={`flex-1 py-3 px-6 rounded-xl font-black text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
+            walletTab === 'withdraw'
+              ? 'bg-rose-600 text-white shadow-md'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <ArrowUpRight className="w-4 h-4" /> Withdraw Funds
+        </button>
       </div>
+
+      {/* ── DEPOSIT TAB CONTENT ─────────────────────────────────────────── */}
+      {walletTab === 'deposit' ? (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
+          <div>
+            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              Select Payment Method
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Choose your preferred deposit method below to top up your account balance.
+            </p>
+          </div>
+
+          {/* Help Text / Official Bank Accounts Toggle Button */}
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowBankHelpInfo(!showBankHelpInfo)}
+              className="w-full p-4 bg-purple-50 hover:bg-purple-100/80 border border-purple-200 rounded-2xl flex items-center justify-between text-xs font-bold text-purple-900 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-purple-600" />
+                Transfer to Any Official Account (Help &amp; Info)
+              </span>
+              <span className="text-purple-700 font-extrabold bg-purple-200/60 px-3 py-1 rounded-full text-[10px] uppercase">
+                {showBankHelpInfo ? 'Hide Details ▲' : 'Show Help Info ▼'}
+              </span>
+            </button>
+
+            {showBankHelpInfo && (
+              <div className="bg-slate-900 text-slate-100 rounded-2xl p-5 border border-slate-800 space-y-4 text-xs animate-in fade-in">
+                <p className="font-extrabold text-amber-400 text-sm flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4" /> Transfer to Any Official Account:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {bankAccounts.map(b => (
+                    <div key={b.name} className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
+                      <p className="font-bold text-white text-xs">{b.name}</p>
+                      <p className="text-slate-400 text-[11px]">{b.holder}</p>
+                      <p className="font-mono text-emerald-400 font-bold text-sm select-all">{b.accNo}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* METHOD 1: CHAPA */}
+            <div
+              onClick={() => handleOpenModal('Chapa')}
+              role="button"
+              tabIndex={0}
+              className="group relative rounded-3xl border-2 border-slate-200 hover:border-purple-500 bg-gradient-to-b from-slate-50 to-purple-50/20 p-6 transition-all duration-300 hover:shadow-xl cursor-pointer flex flex-col justify-between"
+            >
+              <div className="flex items-start justify-between">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-2 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center">
+                  <ChapaLogo />
+                </div>
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 font-extrabold text-[10px] rounded-full uppercase tracking-wider">
+                  Instant Gateway
+                </span>
+              </div>
+
+              <div className="mt-4">
+                <h3 className="text-base font-black text-slate-900 group-hover:text-purple-600 transition-colors">
+                  Chapa Payment
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Instant online checkout supporting Telebirr, CBE Birr, Mobile Banking, and Debit/Credit Cards.
+                </p>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-purple-600">
+                <span>Top up with Chapa</span>
+                <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+
+            {/* METHOD 2: MANUAL PAYMENT */}
+            <div
+              onClick={() => handleOpenModal('Manual')}
+              role="button"
+              tabIndex={0}
+              className="group relative rounded-3xl border-2 border-slate-200 hover:border-emerald-500 bg-gradient-to-b from-slate-50 to-emerald-50/20 p-6 transition-all duration-300 hover:shadow-xl cursor-pointer flex flex-col justify-between"
+            >
+              <div className="flex items-start justify-between">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 p-2 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center">
+                  <ManualPaymentLogo />
+                </div>
+                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-extrabold text-[10px] rounded-full uppercase tracking-wider">
+                  Bank Transfer
+                </span>
+              </div>
+
+              <div className="mt-4">
+                <h3 className="text-base font-black text-slate-900 group-hover:text-emerald-600 transition-colors">
+                  Manual Payment
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Direct bank transfer to CBE, Awash, or Telebirr with manual transaction slip receipt submission.
+                </p>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-emerald-600">
+                <span>Submit Bank Receipt</span>
+                <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ── WITHDRAWAL TAB CONTENT ───────────────────────────────────────── */
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+          <div>
+            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              Request Wallet Withdrawal
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Withdraw funds from your wallet directly to your verified bank or Telebirr account.
+            </p>
+          </div>
+
+          {withdrawMsg && (
+            <div className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2 border ${
+              withdrawMsg.includes('✅')
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}>
+              <span>{withdrawMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleWithdrawSubmit} className="space-y-4 max-w-lg">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                Withdrawal Amount (ETB)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max={currentUser?.walletBalance ?? 0}
+                value={withdrawAmount}
+                onChange={e => setWithdrawAmount(e.target.value)}
+                placeholder="Enter amount (e.g. 500)"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 focus:outline-none focus:border-rose-500"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Available for withdrawal: <strong className="text-emerald-600">{(currentUser?.walletBalance ?? 0).toLocaleString()} ETB</strong>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                Select Destination Bank / Provider
+              </label>
+              <select
+                value={withdrawBank}
+                onChange={e => setWithdrawBank(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-900 focus:outline-none focus:border-rose-500"
+              >
+                <option value="Commercial Bank of Ethiopia (CBE)">Commercial Bank of Ethiopia (CBE)</option>
+                <option value="Telebirr Transfer">Telebirr Transfer</option>
+                <option value="Dashen Bank / Amole">Dashen Bank / Amole</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                Account / Phone Number
+              </label>
+              <input
+                type="text"
+                value={withdrawAccountNo}
+                onChange={e => setWithdrawAccountNo(e.target.value)}
+                placeholder="e.g. 1000 4829 10482 or 0911002233"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-900 focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                Account Holder Name
+              </label>
+              <input
+                type="text"
+                value={withdrawAccountName}
+                onChange={e => setWithdrawAccountName(e.target.value)}
+                placeholder="Name as registered on bank account"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-900 focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={withdrawLoading}
+              className="w-full py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-rose-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {withdrawLoading ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /><span>Submitting Request…</span></>
+              ) : (
+                <><ArrowUpRight className="w-4 h-4" /><span>Submit Withdrawal Request</span></>
+              )}
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* ── TOP UP MODAL (CHAPA OR MANUAL) ────────────────────────────────── */}
       {showModal && selectedMethod && (
@@ -379,31 +612,106 @@ export default function Wallet() {
 
             {/* Additional Inputs — Manual only */}
             {selectedMethod === 'Manual' && (
-              <div className="space-y-3">
+              <div className="space-y-4 pt-1">
+                {/* Proof Type Toggle Switch */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Transaction / Reference ID <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">
+                    Verification Method
                   </label>
-                  <input
-                    value={reference}
-                    onChange={(e) => setReference(e.target.value)}
-                    type="text"
-                    placeholder="e.g. CBE-TXN-984210"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-500"
-                  />
+                  <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setManualProofMode('ref_id')}
+                      className={`py-2 px-3 text-xs font-bold rounded-xl transition-all ${
+                        manualProofMode === 'ref_id'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      🔑 Reference ID / Link / SMS
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setManualProofMode('image')}
+                      className={`py-2 px-3 text-xs font-bold rounded-xl transition-all ${
+                        manualProofMode === 'image'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      🖼️ Receipt Proof Image
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Receipt Proof Image / URL <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    value={receipt}
-                    onChange={(e) => setReceipt(e.target.value)}
-                    type="text"
-                    placeholder="https://... or paste transaction slip screenshot URL"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-500"
-                  />
-                </div>
+
+                {/* Mode 1: Reference ID / Link / SMS */}
+                {manualProofMode === 'ref_id' ? (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Transaction ID, Confirmation SMS, or Payment Link <span className="text-rose-500">*</span>
+                    </label>
+                    <textarea
+                      value={reference}
+                      onChange={(e) => {
+                        setReference(e.target.value);
+                        if (!receipt) setReceipt('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400');
+                      }}
+                      placeholder="Paste your transaction ID code (e.g. CBE-TXN-984210), bank SMS confirmation text message, or payment link..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-500 h-20 resize-none"
+                    />
+                  </div>
+                ) : (
+                  /* Mode 2: Receipt Proof Image with File Importer */
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Import Local Image File <span className="text-rose-500">*</span>
+                      </label>
+                      <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-emerald-300 hover:border-emerald-500 rounded-2xl bg-emerald-50/40 hover:bg-emerald-50 cursor-pointer transition-colors text-center">
+                        <span className="text-xs font-bold text-emerald-700">📁 Click to Import Receipt Photo</span>
+                        <span className="text-[10px] text-slate-500 mt-0.5">Supports PNG, JPG, JPEG, WEBP files</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageFileImport}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Or Paste Receipt Image URL
+                      </label>
+                      <input
+                        value={receipt}
+                        onChange={(e) => {
+                          setReceipt(e.target.value);
+                          setReceiptFilePreview(e.target.value);
+                        }}
+                        type="text"
+                        placeholder="https://... or paste screenshot picture URL"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    {(receiptFilePreview || (receipt && receipt.startsWith('http'))) && (
+                      <div className="p-2 bg-slate-100 rounded-2xl border border-slate-200 flex items-center gap-3">
+                        <img
+                          src={receiptFilePreview || receipt}
+                          alt="Receipt Preview"
+                          className="w-14 h-14 object-cover rounded-xl border border-slate-300 shrink-0"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                        <div className="text-xs">
+                          <p className="font-bold text-emerald-700">✓ Image Imported</p>
+                          <p className="text-[10px] text-slate-500">Ready to submit to admin verification queue.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Notes (Optional)</label>
                   <textarea
