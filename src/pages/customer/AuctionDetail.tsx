@@ -269,7 +269,7 @@ export default function AuctionDetail() {
       if (ok) {
         setBidSubmitState('success');
         setBidSubmitText('You placed bet');
-        setBidResult({ ok: true, msg: `Bid of ${amount.toFixed(1)} ETB placed successfully!` });
+        setBidResult({ ok: true, msg: `Bid of ${amount.toFixed(1)} ETB placed! Fee: ${auction!.bidPerCost ?? 100} ETB deducted.` });
         setBidAmount('');
         // Re-fetch bids so stats update instantly
         bidsApi.forAuction(auction!.id)

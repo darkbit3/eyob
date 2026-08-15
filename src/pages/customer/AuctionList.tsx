@@ -118,7 +118,7 @@ export default function AuctionList() {
       if (ok) {
         setBidSubmitState('success');
         setBidSubmitText('Bid placed!');
-        setBidResult({ ok: true, msg: `Bid placed for ${amount.toFixed(1)} ETB!` });
+        setBidResult({ ok: true, msg: `Bid placed! ${selectedAuction.bidPerCost ?? 100} ETB fee deducted from your wallet.` });
         setBidAmount('');
         bidsApi.forAuction(selectedAuction.id)
           .then(res => setAuctionBids((res.data || []).map((b: any) => ({
