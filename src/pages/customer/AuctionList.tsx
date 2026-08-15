@@ -429,7 +429,6 @@ export default function AuctionList() {
                             <p className={`text-sm ${bidResult.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{bidResult.msg}</p>
                           )}
                           <div className="grid gap-3 sm:grid-cols-2 text-sm text-slate-600">
-                            {lowestUnique !== null && <p>Lowest unique: {lowestUnique.toFixed(1)} ETB</p>}
                             {myLatestBid && <p>Your latest bid: {myLatestBid.amount.toFixed(1)} ETB</p>}
                           </div>
                         </form>
