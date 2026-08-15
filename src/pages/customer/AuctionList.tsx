@@ -91,8 +91,7 @@ export default function AuctionList() {
     if (selectedAuction.status !== 'active') {
       setBidResult({ ok: false, msg: 'This auction is not currently active.' });
       return;
-    }
-    const amount = Number(bidAmount);
+    }    const amount = Number(bidAmount);
     if (isNaN(amount) || amount < selectedAuction.minBid || amount > selectedAuction.maxBid) {
       setBidResult({ ok: false, msg: `Enter a valid bid between ${selectedAuction.minBid} and ${selectedAuction.maxBid} ETB.` });
       return;
@@ -514,10 +513,25 @@ export default function AuctionList() {
                   {/* Live stats in quick-preview too */}
                   <StatsBlock />
 
-                  <button type="button" onClick={() => setShowFullView(true)}
-                    className="w-full rounded-3xl bg-blue-600 text-white py-3 text-sm font-semibold hover:bg-blue-500 transition">
-                    View full auction
-                  </button>
+                  {selectedAuction.status === 'active' ? (
+                    <button type="button" onClick={() => setShowFullView(true)}
+                      className="w-full rounded-3xl bg-blue-600 text-white py-3 text-sm font-semibold hover:bg-blue-500 transition">
+                      View full auction &amp; Place Bid
+                    </button>
+                  ) : (
+                    <div className={`rounded-2xl p-3 text-xs font-semibold text-center border ${
+                      selectedAuction.status === 'paused'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : selectedAuction.status === 'upcoming'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                    }`}>
+                      {selectedAuction.status === 'paused'   && '⏸ Bidding paused'}
+                      {selectedAuction.status === 'upcoming' && "🕐 Not started yet"}
+                      {selectedAuction.status === 'closed'   && '✓ Auction closed'}
+                      {selectedAuction.status === 'draft'    && '📝 Not published'}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
