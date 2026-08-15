@@ -204,7 +204,6 @@ export default function Dashboard() {
                     onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=200&q=80'; }} />
                   <div className="min-w-0 flex-1">
                     <h4 className="font-bold text-slate-900 text-sm truncate">{a.title}</h4>
-                    <p className="text-xs text-slate-500">Retail: {formatCurrency(a.retailValue)}</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">

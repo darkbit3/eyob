@@ -291,11 +291,7 @@ export default function AuctionList() {
                     <div className="rounded-3xl bg-slate-50 p-6 border border-slate-200">
                       <h3 className="text-xl font-bold text-slate-900">{selectedAuction.title}</h3>
                       <p className="text-sm text-slate-500 mt-2">{selectedAuction.description}</p>
-                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-700">
-                        <div className="rounded-2xl bg-white p-4 border border-slate-200">
-                          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Retail</p>
-                          <p className="font-bold text-slate-900 mt-2">{formatCurrency(selectedAuction.retailValue)}</p>
-                        </div>
+                      <div className="mt-4 grid grid-cols-1 gap-3 text-sm text-slate-700">
                         <div className="rounded-2xl bg-white p-4 border border-slate-200">
                           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Bid range</p>
                           <p className="font-bold text-blue-600 mt-2">{selectedAuction.minBid}–{selectedAuction.maxBid} ETB</p>
@@ -481,10 +477,10 @@ export default function AuctionList() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-slate-600">{selectedAuction.description}</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       <div className="rounded-3xl bg-slate-100 p-4 text-center">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Bid Per Cost</p>
-                        <p className="text-sm font-bold text-slate-900 mt-2">{formatCurrency(selectedAuction.bidPerCost || selectedAuction.retailValue)}</p>
+                        <p className="text-sm font-bold text-slate-900 mt-2">{formatCurrency(selectedAuction.bidPerCost || 0)}</p>
                       </div>
                       <div className="rounded-3xl bg-slate-100 p-4 text-center">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Bid Range</p>

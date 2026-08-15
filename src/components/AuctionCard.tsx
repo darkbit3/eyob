@@ -141,14 +141,10 @@ export default function AuctionCard({
           </div>
 
           {/* Price details */}
-          <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+          <div className="flex items-center bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
             <div>
               <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">{t('bid_cost')}</p>
               <p className="text-sm font-black text-slate-900">{formatCurrency(bidCost)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">{t('retail_value')}</p>
-              <p className="text-sm font-bold text-emerald-600">{formatCurrency(auction.retailValue)}</p>
             </div>
           </div>
 
