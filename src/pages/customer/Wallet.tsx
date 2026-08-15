@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/countdown';
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, CreditCard, Building2, ExternalLink, ShieldCheck, Loader2, CheckCircle, XCircle } from 'lucide-react';
@@ -6,8 +6,40 @@ import { ChapaLogo, ManualPaymentLogo } from '../../components/PaymentMethodLogo
 import { walletApi, settingsApi } from '../../utils/api';
 
 export default function Wallet() {
-  const { currentUser, transactions, setPaymentQueue, refreshCurrentUser } = useApp();
-  const myTxs = transactions.filter(t => t.userId === currentUser?.id);
+  const { currentUser, setPaymentQueue, refreshCurrentUser } = useApp();
+
+  // ── Live transactions fetched from backend ────────────────────────────────
+  const [myTxs, setMyTxs] = useState<any[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txRefreshing, setTxRefreshing] = useState(false);
+
+  const fetchMyTransactions = useCallback(async (silent = false) => {
+    if (!silent) setTxLoading(true);
+    else setTxRefreshing(true);
+    try {
+      const res = await walletApi.myTransactions();
+      setMyTxs((res.data || []).map((t: any) => ({
+        id:          t.id,
+        userId:      t.user_id ?? t.userId ?? '',
+        userName:    t.user_name ?? t.userName ?? '',
+        type:        t.type ?? '',
+        amount:      Number(t.amount ?? 0),
+        description: t.description ?? '',
+        status:      t.status ?? 'completed',
+        paymentMethod: t.payment_method ?? t.paymentMethod ?? '',
+        timestamp:   t.created_at ?? t.timestamp ?? new Date().toISOString(),
+      })));
+    } catch {
+      // keep existing data on error
+    } finally {
+      setTxLoading(false);
+      setTxRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) fetchMyTransactions();
+  }, [currentUser?.id]);
 
   const [selectedMethod, setSelectedMethod] = useState<'Chapa' | 'Manual' | null>(null);
   const [amount, setAmount] = useState('');
@@ -97,6 +129,7 @@ export default function Wallet() {
           setMsg(`✅ ${res.message || 'Payment confirmed! Your wallet has been credited.'}`);
           setMsgType('success');
           refreshCurrentUser();
+          fetchMyTransactions(true);
         } else {
           setMsg('⚠️ Payment is pending confirmation. Check back shortly.');
           setMsgType('info');
@@ -210,6 +243,8 @@ export default function Wallet() {
           setPaymentQueue(prev => [res.data, ...(prev || [])]);
         }
         setMsg('✅ Manual deposit submitted! Admin will verify your bank receipt shortly.');
+        setMsgType('success');
+        fetchMyTransactions(true);
         setMsgType('success');
         setTimeout(() => {
           setAmount('');
@@ -878,9 +913,23 @@ export default function Wallet() {
 
       {/* ── TRANSACTION HISTORY ─────────────────────────────────────────── */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <h2 className="text-lg font-black text-slate-900">Transaction History</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-black text-slate-900">Transaction History</h2>
+          <button
+            onClick={() => fetchMyTransactions(true)}
+            disabled={txRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${txRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
 
-        {myTxs.length === 0 ? (
+        {txLoading ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-slate-400 text-sm">
+            <Loader2 className="w-5 h-5 animate-spin" /> Loading transactions…
+          </div>
+        ) : myTxs.length === 0 ? (
           <div className="text-center py-10 text-slate-400 space-y-2">
             <div className="text-4xl">📋</div>
             <p className="font-semibold text-sm">No transactions recorded yet</p>
@@ -890,22 +939,26 @@ export default function Wallet() {
           <div className="space-y-2">
             {myTxs.map(t => {
               const meta = txMeta(t.type);
-              const isDebit = t.type === 'bid_placed';
+              const isDebit = Number(t.amount) < 0;
               return (
                 <div key={t.id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100">
-                  {/* Icon */}
                   <div className={`${meta.bg} w-10 h-10 rounded-xl flex items-center justify-center shrink-0`}>
                     {meta.icon}
                   </div>
-                  {/* Text */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-slate-900 truncate">{meta.label}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-black text-slate-900 truncate">{meta.label}</p>
+                      {t.paymentMethod && (
+                        <span className="text-[10px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-full shrink-0">
+                          {t.paymentMethod}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-slate-500 truncate">{t.description}</p>
                   </div>
-                  {/* Amount + Date */}
                   <div className="text-right shrink-0">
                     <p className={`text-sm font-black ${isDebit ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {isDebit ? '-' : '+'}{Math.abs(t.amount).toLocaleString()} ETB
+                      {isDebit ? '' : '+'}{Number(t.amount).toLocaleString()} ETB
                     </p>
                     <p className="text-[10px] text-slate-400 font-mono mt-0.5">{formatDate(t.timestamp)}</p>
                   </div>
