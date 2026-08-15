@@ -6,7 +6,7 @@ import { formatCurrency, getAuctionDisplayStatus } from '../utils/countdown';
 import { ROUTES } from '../utils/routes';
 import { useLanguage } from '../context/LanguageContext';
 import { useApp } from '../context/AppContext';
-import { Users, TrendingDown, ArrowRight, Lock, Unlock, CreditCard } from 'lucide-react';
+import { Users, TrendingDown, ArrowRight, Lock, Unlock, CreditCard, CheckCircle, XCircle } from 'lucide-react';
 
 export default function AuctionCard({
   auction,
@@ -20,7 +20,7 @@ export default function AuctionCard({
   const { isAuctionUnlocked, unlockAuction, currentUser } = useApp();
 
   const [showUnlockModal, setShowUnlockModal] = useState(false);
-  const [unlocking, setUnlocking] = useState(false);
+  const [unlockState, setUnlockState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [unlockMsg, setUnlockMsg] = useState('');
 
   const displayStatus = getAuctionDisplayStatus(auction.status, auction.startTime, auction.endTime);
@@ -49,23 +49,26 @@ export default function AuctionCard({
 
   async function handleConfirmUnlock() {
     setUnlockMsg('');
-    setUnlocking(true);
+    setUnlockState('loading');
     try {
       const res = await unlockAuction(auction.id);
       if (res.success) {
-        setUnlockMsg(res.message);
+        setUnlockState('success');
+        setUnlockMsg(res.message || 'Auction unlocked successfully!');
         setTimeout(() => {
           setShowUnlockModal(false);
+          setUnlockState('idle');
+          setUnlockMsg('');
           if (onClick) onClick();
           else nav(`${ROUTES.AUCTION_DETAIL}/${auction.id}`);
-        }, 1000);
+        }, 1400);
       } else {
-        setUnlockMsg(res.message);
+        setUnlockState('error');
+        setUnlockMsg(res.message || 'Unlock failed. Please try again.');
       }
     } catch (err: any) {
+      setUnlockState('error');
       setUnlockMsg(err?.message || 'Failed to unlock auction.');
-    } finally {
-      setUnlocking(false);
     }
   }
 
@@ -236,9 +239,35 @@ export default function AuctionCard({
               </div>
             )}
 
-            {unlockMsg && (
-              <div className={`p-3 rounded-xl text-xs font-bold mb-4 ${unlockMsg.includes('unlocked') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
-                {unlockMsg}
+            {/* Status feedback: loading / success / error */}
+            {unlockState !== 'idle' && (
+              <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl border mb-4 text-center transition-all ${
+                unlockState === 'loading' ? 'bg-amber-50 border-amber-200' :
+                unlockState === 'success' ? 'bg-emerald-50 border-emerald-200' :
+                'bg-rose-50 border-rose-200'
+              }`}>
+                {unlockState === 'loading' && (
+                  <>
+                    <div className="w-10 h-10 rounded-full border-4 border-amber-200 border-t-amber-500 animate-spin" />
+                    <p className="text-xs font-bold text-amber-700">Processing payment…</p>
+                  </>
+                )}
+                {unlockState === 'success' && (
+                  <>
+                    <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-900/20">
+                      <CheckCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-xs font-bold text-emerald-700">{unlockMsg}</p>
+                  </>
+                )}
+                {unlockState === 'error' && (
+                  <>
+                    <div className="w-10 h-10 rounded-full bg-rose-500 flex items-center justify-center shadow-lg shadow-rose-900/20">
+                      <XCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-xs font-bold text-rose-700">{unlockMsg}</p>
+                  </>
+                )}
               </div>
             )}
 
@@ -254,11 +283,17 @@ export default function AuctionCard({
               {canAfford ? (
                 <button
                   type="button"
-                  disabled={unlocking}
+                  disabled={unlockState === 'loading' || unlockState === 'success'}
                   onClick={handleConfirmUnlock}
-                  className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs rounded-xl shadow-lg shadow-amber-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs rounded-xl shadow-lg shadow-amber-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
                 >
-                  {unlocking ? 'Processing Payment...' : `Pay ${formatCurrency(bidCost)} & Unlock`}
+                  {unlockState === 'loading' ? (
+                    <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /><span>Processing…</span></>
+                  ) : unlockState === 'success' ? (
+                    <><CheckCircle className="w-4 h-4" /><span>Unlocked!</span></>
+                  ) : (
+                    <span>Pay {formatCurrency(bidCost)} &amp; Unlock</span>
+                  )}
                 </button>
               ) : (
                 <button

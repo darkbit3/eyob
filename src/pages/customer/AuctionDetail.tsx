@@ -48,7 +48,7 @@ export default function AuctionDetail() {
   const userBalance = currentUser?.walletBalance ?? 0;
   const canAfford = userBalance >= bidCost;
 
-  const [unlockingDetail, setUnlockingDetail] = useState(false);
+  const [unlockDetailState, setUnlockDetailState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [unlockDetailMsg, setUnlockDetailMsg] = useState('');
 
   async function handleUnlockAuctionDetail() {
@@ -57,15 +57,20 @@ export default function AuctionDetail() {
       nav(ROUTES.WALLET);
       return;
     }
-    setUnlockingDetail(true);
+    setUnlockDetailState('loading');
     setUnlockDetailMsg('');
     try {
       const res = await unlockAuction(auction.id);
-      setUnlockDetailMsg(res.message);
+      if (res.success) {
+        setUnlockDetailState('success');
+        setUnlockDetailMsg(res.message || 'Auction unlocked successfully!');
+      } else {
+        setUnlockDetailState('error');
+        setUnlockDetailMsg(res.message || 'Unlock failed. Please try again.');
+      }
     } catch (err: any) {
+      setUnlockDetailState('error');
       setUnlockDetailMsg(err?.message || 'Unlock failed');
-    } finally {
-      setUnlockingDetail(false);
     }
   }
 
@@ -396,33 +401,42 @@ export default function AuctionDetail() {
                   </span>
                 </div>
 
-                {unlockDetailMsg && (
-                  <div className={`p-3 rounded-xl text-xs font-bold ${unlockDetailMsg.includes('unlocked') ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}`}>
-                    {unlockDetailMsg}
+                {/* Feedback: loading / success / error */}
+                {unlockDetailState !== 'idle' && (
+                  <div className={`flex flex-col items-center gap-2 p-3 rounded-2xl border text-center ${
+                    unlockDetailState === 'loading' ? 'bg-amber-500/15 border-amber-500/30' :
+                    unlockDetailState === 'success' ? 'bg-emerald-500/15 border-emerald-500/30' :
+                    'bg-rose-500/15 border-rose-500/30'
+                  }`}>
+                    {unlockDetailState === 'loading' && (
+                      <><div className="w-8 h-8 rounded-full border-4 border-amber-300/30 border-t-amber-400 animate-spin" />
+                      <p className="text-xs font-bold text-amber-300">Processing payment…</p></>
+                    )}
+                    {unlockDetailState === 'success' && (
+                      <><div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center"><CheckCircle className="w-4 h-4 text-white" /></div>
+                      <p className="text-xs font-bold text-emerald-300">{unlockDetailMsg}</p></>
+                    )}
+                    {unlockDetailState === 'error' && (
+                      <><div className="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center"><AlertCircle className="w-4 h-4 text-white" /></div>
+                      <p className="text-xs font-bold text-rose-300">{unlockDetailMsg}</p></>
+                    )}
                   </div>
                 )}
 
                 <button
                   type="button"
-                  disabled={unlockingDetail}
+                  disabled={unlockDetailState === 'loading' || unlockDetailState === 'success'}
                   onClick={handleUnlockAuctionDetail}
-                  className="w-full sm:w-auto px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
+                  className="w-full sm:w-auto px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2 mx-auto disabled:opacity-60"
                 >
-                  {unlockingDetail ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Processing Payment...</span>
-                    </>
+                  {unlockDetailState === 'loading' ? (
+                    <><div className="w-4 h-4 rounded-full border-2 border-slate-900/30 border-t-slate-900 animate-spin" /><span>Processing…</span></>
+                  ) : unlockDetailState === 'success' ? (
+                    <><CheckCircle className="w-4 h-4" /><span>Unlocked!</span></>
                   ) : canAfford ? (
-                    <>
-                      <Lock className="w-4 h-4" />
-                      <span>Pay {formatCurrency(bidCost)} Bid Cost & Unlock Now</span>
-                    </>
+                    <><Lock className="w-4 h-4" /><span>Pay {formatCurrency(bidCost)} Bid Cost &amp; Unlock Now</span></>
                   ) : (
-                    <>
-                      <CreditCard className="w-4 h-4" />
-                      <span>Insufficient Balance — Top-Up Wallet</span>
-                    </>
+                    <><CreditCard className="w-4 h-4" /><span>Insufficient Balance — Top-Up Wallet</span></>
                   )}
                 </button>
               </div>
@@ -491,33 +505,42 @@ export default function AuctionDetail() {
                     </span>
                   </div>
 
-                  {unlockDetailMsg && (
-                    <div className={`p-3 rounded-xl text-xs font-bold ${unlockDetailMsg.includes('unlocked') ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}`}>
-                      {unlockDetailMsg}
+                  {/* Feedback: loading / success / error */}
+                  {unlockDetailState !== 'idle' && (
+                    <div className={`flex flex-col items-center gap-2 p-3 rounded-2xl border text-center ${
+                      unlockDetailState === 'loading' ? 'bg-amber-500/15 border-amber-500/30' :
+                      unlockDetailState === 'success' ? 'bg-emerald-500/15 border-emerald-500/30' :
+                      'bg-rose-500/15 border-rose-500/30'
+                    }`}>
+                      {unlockDetailState === 'loading' && (
+                        <><div className="w-8 h-8 rounded-full border-4 border-amber-300/30 border-t-amber-400 animate-spin" />
+                        <p className="text-xs font-bold text-amber-300">Processing payment…</p></>
+                      )}
+                      {unlockDetailState === 'success' && (
+                        <><div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center"><CheckCircle className="w-4 h-4 text-white" /></div>
+                        <p className="text-xs font-bold text-emerald-300">{unlockDetailMsg}</p></>
+                      )}
+                      {unlockDetailState === 'error' && (
+                        <><div className="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center"><AlertCircle className="w-4 h-4 text-white" /></div>
+                        <p className="text-xs font-bold text-rose-300">{unlockDetailMsg}</p></>
+                      )}
                     </div>
                   )}
 
                   <button
                     type="button"
-                    disabled={unlockingDetail}
+                    disabled={unlockDetailState === 'loading' || unlockDetailState === 'success'}
                     onClick={handleUnlockAuctionDetail}
-                    className="w-full sm:w-auto px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
+                    className="w-full sm:w-auto px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2 mx-auto disabled:opacity-60"
                   >
-                    {unlockingDetail ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Processing Payment...</span>
-                      </>
+                    {unlockDetailState === 'loading' ? (
+                      <><div className="w-4 h-4 rounded-full border-2 border-slate-900/30 border-t-slate-900 animate-spin" /><span>Processing…</span></>
+                    ) : unlockDetailState === 'success' ? (
+                      <><CheckCircle className="w-4 h-4" /><span>Unlocked!</span></>
                     ) : canAfford ? (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        <span>Pay {formatCurrency(bidCost)} & Unlock Now</span>
-                      </>
+                      <><Lock className="w-4 h-4" /><span>Pay {formatCurrency(bidCost)} &amp; Unlock Now</span></>
                     ) : (
-                      <>
-                        <CreditCard className="w-4 h-4" />
-                        <span>Insufficient Balance — Top-Up Wallet</span>
-                      </>
+                      <><CreditCard className="w-4 h-4" /><span>Insufficient Balance — Top-Up Wallet</span></>
                     )}
                   </button>
                 </div>

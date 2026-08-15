@@ -13,7 +13,7 @@ import {
   ArrowRight, Sparkles, LayoutGrid, List
 } from 'lucide-react';
 
-const STATUS_OPTS = ['all', 'active', 'upcoming', 'closed'] as const;
+const STATUS_OPTS = ['all', 'active', 'upcoming', 'paused', 'closed'] as const;
 type StatusOpt = typeof STATUS_OPTS[number];
 
 const validateBidAmount = (value: string): string => {
@@ -29,10 +29,11 @@ const validateBidAmount = (value: string): string => {
 };
 
 const STATUS_META: Record<string, { label: string; color: string; dot: string; badge: string }> = {
-  all:      { label: 'All',     color: 'from-violet-600 to-indigo-600', dot: 'bg-violet-400', badge: 'bg-violet-100 text-violet-700' },
-  active:   { label: 'Live',    color: 'from-emerald-500 to-teal-600',  dot: 'bg-emerald-400 animate-pulse', badge: 'bg-emerald-100 text-emerald-700' },
-  upcoming: { label: 'Soon',    color: 'from-blue-500 to-cyan-600',     dot: 'bg-blue-400',   badge: 'bg-blue-100 text-blue-700' },
-  closed:   { label: 'Ended',   color: 'from-slate-500 to-slate-700',   dot: 'bg-slate-400',  badge: 'bg-slate-100 text-slate-600' },
+  all:      { label: 'All',     color: 'from-violet-600 to-indigo-600',  dot: 'bg-violet-400',             badge: 'bg-violet-100 text-violet-700' },
+  active:   { label: 'Live',    color: 'from-emerald-500 to-teal-600',   dot: 'bg-emerald-400 animate-pulse', badge: 'bg-emerald-100 text-emerald-700' },
+  upcoming: { label: 'Soon',    color: 'from-blue-500 to-cyan-600',      dot: 'bg-blue-400',               badge: 'bg-blue-100 text-blue-700' },
+  paused:   { label: 'Paused',  color: 'from-amber-500 to-orange-500',   dot: 'bg-amber-400',              badge: 'bg-amber-100 text-amber-700' },
+  closed:   { label: 'Ended',   color: 'from-slate-500 to-slate-700',    dot: 'bg-slate-400',              badge: 'bg-slate-100 text-slate-600' },
 };
 
 export default function AuctionList() {
@@ -147,6 +148,7 @@ export default function AuctionList() {
 
   const liveCount     = auctions.filter(a => a.status === 'active').length;
   const upcomingCount = auctions.filter(a => a.status === 'upcoming').length;
+  const pausedCount   = auctions.filter(a => a.status === 'paused').length;
   const closedCount   = auctions.filter(a => a.status === 'closed').length;
 
   function closeModal() {
@@ -191,6 +193,12 @@ export default function AuctionList() {
               <span className="w-2 h-2 rounded-full bg-blue-400" />
               <span className="text-white text-xs font-bold">{upcomingCount} Soon</span>
             </div>
+            {pausedCount > 0 && (
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-3 py-2 backdrop-blur-sm">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                <span className="text-white text-xs font-bold">{pausedCount} Paused</span>
+              </div>
+            )}
             <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-3 py-2 backdrop-blur-sm">
               <span className="w-2 h-2 rounded-full bg-slate-400" />
               <span className="text-white text-xs font-bold">{closedCount} Ended</span>
@@ -223,8 +231,9 @@ export default function AuctionList() {
           {STATUS_OPTS.map(st => {
             const m = STATUS_META[st];
             const count = st === 'all' ? auctions.length
-              : st === 'active' ? liveCount
+              : st === 'active'   ? liveCount
               : st === 'upcoming' ? upcomingCount
+              : st === 'paused'   ? pausedCount
               : closedCount;
             return (
               <button
