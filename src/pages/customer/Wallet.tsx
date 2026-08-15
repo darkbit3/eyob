@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/countdown';
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, CreditCard, Building2, ExternalLink, ShieldCheck, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { ChapaLogo, ManualPaymentLogo } from '../../components/PaymentMethodLogos';
-import { walletApi } from '../../utils/api';
+import { walletApi, settingsApi } from '../../utils/api';
 
 export default function Wallet() {
   const { currentUser, transactions, setPaymentQueue, refreshCurrentUser } = useApp();
@@ -49,7 +49,31 @@ export default function Wallet() {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [withdrawMsg, setWithdrawMsg] = useState('');
 
+  // Dynamic official admin bank accounts state
+  const [bankAccounts, setBankAccounts] = useState<Array<{ name: string; accNo: string; holder: string }>>([
+    { name: 'Commercial Bank of Ethiopia (CBE)', accNo: '1000 4829 10482', holder: 'BidLow Auctions PLC (Admin Official)' },
+    { name: 'CBE Birr', accNo: '1000 4829 10482', holder: 'BidLow Auctions PLC (Admin Official)' },
+    { name: 'Telebirr Transfer', accNo: '0911 002 233', holder: 'BidLow Telebirr Merchant (Admin Official)' },
+    { name: 'Bank of Abyssinia (Abyssinia)', accNo: '8492 1048 2011', holder: 'BidLow Auctions PLC (Admin Official)' },
+    { name: 'Dashen Bank / Amole', accNo: '0132 9845 2011', holder: 'BidLow Auctions PLC (Admin Official)' },
+  ]);
 
+  useEffect(() => {
+    settingsApi.getBankAccounts()
+      .then(res => {
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped = res.data
+            .filter((b: any) => b.is_active !== false)
+            .map((b: any) => ({
+              name: b.method_name,
+              accNo: b.account_number,
+              holder: b.account_holder,
+            }));
+          if (mapped.length > 0) setBankAccounts(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // ── Auto-verify Chapa payment on return from checkout ─────────────────────
   useEffect(() => {
@@ -80,12 +104,6 @@ export default function Wallet() {
         setMsgType('error');
       });
   }, []);
-
-  const bankAccounts = [
-    { name: 'Commercial Bank of Ethiopia (CBE)', accNo: '1000 4829 10482', holder: 'BidLow Auctions PLC' },
-    { name: 'Telebirr Transfer', accNo: '0911 002 233', holder: 'BidLow Telebirr Merchant' },
-    { name: 'Dashen Bank / Amole', accNo: '0132 9845 2011', holder: 'BidLow Auctions PLC' },
-  ];
 
   function handleOpenModal(method: 'Chapa' | 'Manual') {
     setSelectedMethod(method);
@@ -343,7 +361,7 @@ export default function Wallet() {
                 <p className="font-extrabold text-amber-400 text-sm flex items-center gap-1.5">
                   <Building2 className="w-4 h-4" /> Transfer to Any Official Account:
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {bankAccounts.map(b => (
                     <div key={b.name} className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
                       <p className="font-bold text-white text-xs">{b.name}</p>
