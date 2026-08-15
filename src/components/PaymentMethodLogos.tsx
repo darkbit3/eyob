@@ -85,3 +85,20 @@ export function EBirrLogo() {
     </svg>
   );
 }
+
+export function ManualPaymentLogo() {
+  return (
+    <svg viewBox="0 0 60 60" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="manualGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#059669" />
+          <stop offset="100%" stopColor="#10b981" />
+        </linearGradient>
+      </defs>
+      <rect x="4" y="4" width="52" height="52" rx="14" fill="url(#manualGrad)" />
+      <path d="M18 36L30 18L42 36H18Z" fill="#fff" opacity="0.9" />
+      <rect x="22" y="36" width="16" height="6" fill="#fff" />
+      <text x="11" y="52" fill="#fff" fontSize="9" fontWeight="700">MANUAL</text>
+    </svg>
+  );
+}
