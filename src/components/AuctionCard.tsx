@@ -34,8 +34,11 @@ export default function AuctionCard({
   const userBalance = currentUser?.walletBalance ?? 0;
   const canAfford = userBalance >= bidCost;
 
+  // Lock only applies to active and upcoming auctions
+  const needsUnlock = !isUnlocked && (isActive || isUpcoming) && currentUser?.role !== 'admin';
+
   function handleCardClick(e: React.MouseEvent) {
-    if (!isUnlocked && !isClosed && currentUser?.role !== 'admin') {
+    if (needsUnlock) {
       e.stopPropagation();
       setShowUnlockModal(true);
     } else {
@@ -71,7 +74,7 @@ export default function AuctionCard({
       <div
         onClick={handleCardClick}
         className={`group bg-white rounded-3xl border transition-all duration-300 cursor-pointer overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 relative ${
-          !isUnlocked && !isClosed && currentUser?.role !== 'admin'
+          needsUnlock
             ? 'border-amber-200/90 ring-1 ring-amber-100'
             : 'border-slate-200/80'
         }`}
@@ -82,24 +85,24 @@ export default function AuctionCard({
             src={auction.image}
             alt={auction.title}
             className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
-              !isUnlocked && !isClosed && currentUser?.role !== 'admin' ? 'brightness-90 blur-[0.5px]' : ''
+              needsUnlock ? 'brightness-90 blur-[0.5px]' : ''
             }`}
             onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80'; }}
           />
           {/* Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
 
-          {/* Top-Left: Lock Status Badge */}
+          {/* Top-Left: Lock/Status Badge */}
           <div className="absolute top-3 left-3 flex items-center gap-1.5">
-            {!isUnlocked && !isClosed && currentUser?.role !== 'admin' ? (
+            {needsUnlock ? (
               <span className="px-2.5 py-1 rounded-full bg-slate-950/85 backdrop-blur-md text-amber-400 text-[10px] font-black tracking-wider uppercase flex items-center gap-1 border border-amber-500/40 shadow-lg">
-                <Lock className="w-3 h-3 text-amber-400" /> Locked Auction
+                <Lock className="w-3 h-3 text-amber-400" /> Locked
               </span>
-            ) : (
+            ) : (isActive || isUpcoming) && isUnlocked ? (
               <span className="px-2.5 py-1 rounded-full bg-emerald-500/90 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-md">
                 <Unlock className="w-3 h-3 text-emerald-100" /> Unlocked ✓
               </span>
-            )}
+            ) : null}
 
             {isActive && <span className="badge-active text-[10px] shadow-sm">● Live</span>}
             {isUpcoming && <span className="badge-upcoming text-[10px] shadow-sm">◷ Soon</span>}
@@ -148,9 +151,9 @@ export default function AuctionCard({
             </div>
           </div>
 
-          {/* Dynamic Button (Pay Bid Cost to Unlock vs View & Place Bid) */}
+          {/* Dynamic Button */}
           <div className="pt-1">
-            {!isUnlocked && !isClosed && currentUser?.role !== 'admin' ? (
+            {needsUnlock ? (
               <button
                 type="button"
                 onClick={(e) => {
@@ -168,7 +171,7 @@ export default function AuctionCard({
                 onClick={handleCardClick}
                 className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-3 text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-900/20"
               >
-                <span>{t('view_details')} & Place Bid</span>
+                <span>{isClosed ? t('view_details') : `${t('view_details')} & Place Bid`}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}

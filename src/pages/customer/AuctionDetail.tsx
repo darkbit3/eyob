@@ -458,16 +458,70 @@ export default function AuctionDetail() {
           )}
 
           {!isLive && !isClosed && (
-            <div className={`rounded-2xl p-4 text-sm font-semibold flex items-center gap-2 border ${
-              auction.status === 'paused'
-                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                : auction.status === 'upcoming'
-                ? 'bg-blue-50 text-blue-800 border-blue-200'
-                : 'bg-slate-100 text-slate-600 border-slate-200'
-            }`}>
-              {auction.status === 'paused'   && '⏸ Bidding is paused for this auction.'}
-              {auction.status === 'upcoming' && "🕐 This auction hasn't started yet. Check back soon."}
-              {auction.status === 'draft'    && '📝 This auction is not yet published.'}
+            <div className="space-y-3">
+              <div className={`rounded-2xl p-4 text-sm font-semibold flex items-center gap-2 border ${
+                auction.status === 'paused'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                  : auction.status === 'upcoming'
+                  ? 'bg-blue-50 text-blue-800 border-blue-200'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}>
+                {auction.status === 'paused'   && '⏸ Bidding is paused for this auction.'}
+                {auction.status === 'upcoming' && "🕐 This auction hasn't started yet. Check back soon."}
+                {auction.status === 'draft'    && '📝 This auction is not yet published.'}
+              </div>
+
+              {/* Show lock banner for upcoming auctions that need unlocking */}
+              {auction.status === 'upcoming' && !isUnlocked && currentUser?.role !== 'admin' && (
+                <div className="bg-gradient-to-br from-slate-900 to-amber-950 text-white border-2 border-amber-500/40 rounded-3xl p-6 shadow-xl space-y-4 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
+                    <Lock className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-white text-lg">Pay Now to Reserve Your Spot</h3>
+                    <p className="text-xs text-amber-200/80 max-w-md mx-auto mt-1">
+                      Pay the <strong className="text-amber-400 font-extrabold">{formatCurrency(bidCost)}</strong> bid cost entry fee now to be ready to bid when this auction goes live.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-white/10 rounded-2xl border border-white/10 flex items-center justify-between text-xs max-w-sm mx-auto">
+                    <span className="text-slate-300 font-medium">Your Wallet Balance:</span>
+                    <span className={`font-black ${canAfford ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {formatCurrency(userBalance)}
+                    </span>
+                  </div>
+
+                  {unlockDetailMsg && (
+                    <div className={`p-3 rounded-xl text-xs font-bold ${unlockDetailMsg.includes('unlocked') ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}`}>
+                      {unlockDetailMsg}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={unlockingDetail}
+                    onClick={handleUnlockAuctionDetail}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
+                  >
+                    {unlockingDetail ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Processing Payment...</span>
+                      </>
+                    ) : canAfford ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Pay {formatCurrency(bidCost)} & Unlock Now</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4" />
+                        <span>Insufficient Balance — Top-Up Wallet</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
