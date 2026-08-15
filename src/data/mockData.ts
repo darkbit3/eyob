@@ -68,7 +68,7 @@ export interface Transaction {
   id: string;
   userId: string;
   userName: string;
-  type: 'wallet_deposit' | 'bid_placed' | 'refund' | 'winning_reward' | 'manual_adjustment' | 'wallet_withdrawal';
+  type: 'wallet_deposit' | 'bid_placed' | 'refund' | 'winning_reward' | 'manual_adjustment' | 'wallet_withdrawal' | 'bid_fee_paid' | string;
   amount: number;
   description: string;
   timestamp: string;
