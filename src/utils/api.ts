@@ -102,6 +102,12 @@ export const auctionsApi = {
   },
   get: (id: string) =>
     request<{ success: boolean; data: any }>(`/auctions/${id}`),
+  myUnlocked: () =>
+    request<{ success: boolean; data: string[] }>('/auctions/unlocked/my'),
+  unlock: (id: string) =>
+    request<{ success: boolean; message: string; data: { unlocked: boolean; wallet_balance?: number } }>(`/auctions/${id}/unlock`, {
+      method: 'POST',
+    }),
   create: (data: any) =>
     request<{ success: boolean; data: any }>('/auctions', {
       method: 'POST',

@@ -35,6 +35,11 @@ interface AppContextType {
   settings: SystemSettings;
   setSettings: React.Dispatch<React.SetStateAction<SystemSettings>>;
 
+  // Unlock Auctions State
+  unlockedAuctionIds: string[];
+  isAuctionUnlocked: (auctionId: string) => boolean;
+  unlockAuction: (auctionId: string) => Promise<{ success: boolean; message: string }>;
+
   // Actions
   markNotificationRead: (id: string) => void;
   placeBid: (auctionId: string, amount: number) => boolean;
@@ -147,6 +152,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(initialSettings);
 
+  const [unlockedAuctionIds, setUnlockedAuctionIds] = useState<string[]>([]);
+
   // ── On mount: restore session & load live data ──────────────────────────────
   useEffect(() => {
     const token = getToken();
@@ -161,6 +168,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     auctionsApi.list()
       .then(res => setAuctions(res.data.map(apiToAuction)))
       .catch(() => {/* keep mock */});
+
+    // Load unlocked auction IDs for user
+    auctionsApi.myUnlocked()
+      .then(res => setUnlockedAuctionIds(res.data || []))
+      .catch(() => {});
 
     // Load products
     productsApi.list()
@@ -182,6 +194,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then(res => setNotifications(res.data))
       .catch(() => {});
   }, []);
+
+  function isAuctionUnlocked(auctionId: string): boolean {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    return unlockedAuctionIds.includes(auctionId);
+  }
+
+  async function unlockAuction(auctionId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await auctionsApi.unlock(auctionId);
+      if (res.success) {
+        setUnlockedAuctionIds(prev => Array.from(new Set([...prev, auctionId])));
+        await refreshCurrentUser();
+        walletApi.myTransactions().then(r => setTransactions(r.data || [])).catch(() => {});
+        return { success: true, message: res.message || 'Auction unlocked successfully!' };
+      } else {
+        return { success: false, message: res.message || 'Failed to unlock auction' };
+      }
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to pay bid cost to unlock auction' };
+    }
+  }
 
   async function refreshCurrentUser() {
     try {
@@ -483,6 +517,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       logout,
       addAuditLog,
+      unlockedAuctionIds,
+      isAuctionUnlocked,
+      unlockAuction,
       createAuction,
       updateAuction,
       pauseAuction,
@@ -531,6 +568,9 @@ const fallbackAppContext: AppContextType = {
   markNotificationRead: () => {},
   placeBid: () => false,
   editBid: () => false,
+  unlockedAuctionIds: [],
+  isAuctionUnlocked: () => false,
+  unlockAuction: async () => ({ success: false, message: 'Not logged in' }),
   logout: () => {},
   addAuditLog: () => {},
   createAuction: async () => {},

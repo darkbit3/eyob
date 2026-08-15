@@ -7,7 +7,7 @@ import { formatCurrency, formatDate } from '../../utils/countdown';
 import { bidsApi } from '../../utils/api';
 import { Bid } from '../../data/mockData';
 import {
-  ChevronLeft, Users, TrendingDown, Phone,
+  ChevronLeft, Users, TrendingDown, Phone, Lock, CreditCard,
   CheckCircle, AlertCircle, Gavel, Sparkles, Play, RefreshCw, Trophy, XCircle, Clock, Star, Loader2
 } from 'lucide-react';
 
@@ -37,11 +37,37 @@ const validateBidAmount = (value: string): string => {
 
 export default function AuctionDetail() {
   const { id } = useParams<{ id: string }>();
-  const { auctions, products, users, currentUser, placeBid, setAuctions } = useApp();
+  const { auctions, products, users, currentUser, placeBid, setAuctions, isAuctionUnlocked, unlockAuction } = useApp();
   const nav = useNavigate();
 
   const auction = auctions.find(a => a.id === id);
   const linkedProduct = auction?.productId ? products.find(p => p.id === auction.productId) : undefined;
+
+  const isUnlocked = auction ? isAuctionUnlocked(auction.id) : false;
+  const bidCost = auction?.bidPerCost || 100;
+  const userBalance = currentUser?.walletBalance ?? 0;
+  const canAfford = userBalance >= bidCost;
+
+  const [unlockingDetail, setUnlockingDetail] = useState(false);
+  const [unlockDetailMsg, setUnlockDetailMsg] = useState('');
+
+  async function handleUnlockAuctionDetail() {
+    if (!auction) return;
+    if (!canAfford) {
+      nav(ROUTES.WALLET);
+      return;
+    }
+    setUnlockingDetail(true);
+    setUnlockDetailMsg('');
+    try {
+      const res = await unlockAuction(auction.id);
+      setUnlockDetailMsg(res.message);
+    } catch (err: any) {
+      setUnlockDetailMsg(err?.message || 'Unlock failed');
+    } finally {
+      setUnlockingDetail(false);
+    }
+  }
 
   // ── Live bids fetched from API ────────────────────────────────────────────
   const [auctionBids, setAuctionBids] = useState<Bid[]>([]);
@@ -351,33 +377,84 @@ export default function AuctionDetail() {
           </div>
 
           {isLive && (
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 text-sm flex items-center gap-2"><Gavel className="w-4 h-4 text-blue-600" /> Submit Your Bid</span>
-              </div>
-              <form onSubmit={handleBid} className="flex gap-2">
-                <input type="number" value={bidAmount} onChange={e => setBidAmount(validateBidAmount(e.target.value))}
-                  className="input-field flex-1 font-bold" placeholder={`Range: ${auction.minBid} – ${auction.maxBid} ETB`}
-                  min={auction.minBid} max={auction.maxBid} />
-                <button type="submit" disabled={bidSubmitState === 'loading'} className="btn-primary whitespace-nowrap disabled:opacity-60">
-                  {bidSubmitState === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Place Bid'}
-                </button>
-              </form>
-
-              {/* Inline bid status — loading / success / error */}
-              {bidSubmitState !== 'idle' && (
-                <div className={`flex items-center gap-3 p-3 rounded-xl text-sm font-bold border ${
-                  bidSubmitState === 'loading' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                  bidSubmitState === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                  'bg-rose-50 text-rose-800 border-rose-200'
-                }`}>
-                  {bidSubmitState === 'loading' && <Loader2 className="w-5 h-5 animate-spin shrink-0" />}
-                  {bidSubmitState === 'success' && <CheckCircle className="w-5 h-5 shrink-0" />}
-                  {bidSubmitState === 'error'   && <AlertCircle className="w-5 h-5 shrink-0" />}
-                  <span>{bidSubmitText || (bidResult?.msg ?? '')}</span>
+            !isUnlocked && currentUser?.role !== 'admin' ? (
+              <div className="bg-gradient-to-br from-slate-900 to-amber-950 text-white border-2 border-amber-500/40 rounded-3xl p-6 shadow-xl space-y-4 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
+                  <Lock className="w-7 h-7" />
                 </div>
-              )}
-            </div>
+                <div>
+                  <h3 className="font-black text-white text-lg">Auction Access Locked</h3>
+                  <p className="text-xs text-amber-200/80 max-w-md mx-auto mt-1">
+                    First pay the required <strong className="text-amber-400 font-extrabold">{formatCurrency(bidCost)}</strong> bid cost entry fee to unlock live bidding for this auction.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white/10 rounded-2xl border border-white/10 flex items-center justify-between text-xs max-w-sm mx-auto">
+                  <span className="text-slate-300 font-medium">Your Wallet Balance:</span>
+                  <span className={`font-black ${canAfford ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {formatCurrency(userBalance)}
+                  </span>
+                </div>
+
+                {unlockDetailMsg && (
+                  <div className={`p-3 rounded-xl text-xs font-bold ${unlockDetailMsg.includes('unlocked') ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}`}>
+                    {unlockDetailMsg}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  disabled={unlockingDetail}
+                  onClick={handleUnlockAuctionDetail}
+                  className="w-full sm:w-auto px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
+                >
+                  {unlockingDetail ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Processing Payment...</span>
+                    </>
+                  ) : canAfford ? (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      <span>Pay {formatCurrency(bidCost)} Bid Cost & Unlock Now</span>
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4" />
+                      <span>Insufficient Balance — Top-Up Wallet</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 text-sm flex items-center gap-2"><Gavel className="w-4 h-4 text-blue-600" /> Submit Your Bid</span>
+                </div>
+                <form onSubmit={handleBid} className="flex gap-2">
+                  <input type="number" value={bidAmount} onChange={e => setBidAmount(validateBidAmount(e.target.value))}
+                    className="input-field flex-1 font-bold" placeholder={`Range: ${auction.minBid} – ${auction.maxBid} ETB`}
+                    min={auction.minBid} max={auction.maxBid} />
+                  <button type="submit" disabled={bidSubmitState === 'loading'} className="btn-primary whitespace-nowrap disabled:opacity-60">
+                    {bidSubmitState === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Place Bid'}
+                  </button>
+                </form>
+
+                {/* Inline bid status — loading / success / error */}
+                {bidSubmitState !== 'idle' && (
+                  <div className={`flex items-center gap-3 p-3 rounded-xl text-sm font-bold border ${
+                    bidSubmitState === 'loading' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                    bidSubmitState === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                    'bg-rose-50 text-rose-800 border-rose-200'
+                  }`}>
+                    {bidSubmitState === 'loading' && <Loader2 className="w-5 h-5 animate-spin shrink-0" />}
+                    {bidSubmitState === 'success' && <CheckCircle className="w-5 h-5 shrink-0" />}
+                    {bidSubmitState === 'error'   && <AlertCircle className="w-5 h-5 shrink-0" />}
+                    <span>{bidSubmitText || (bidResult?.msg ?? '')}</span>
+                  </div>
+                )}
+              </div>
+            )
           )}
 
           {!isLive && !isClosed && (
