@@ -49,6 +49,9 @@ export default function Wallet() {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [withdrawMsg, setWithdrawMsg] = useState('');
 
+  // Chapa mode: deposit or withdraw
+  const [chapaMode, setChapaMode] = useState<'deposit' | 'withdraw'>('deposit');
+
   // Dynamic official admin bank accounts state
   const [bankAccounts, setBankAccounts] = useState<Array<{ name: string; accNo: string; holder: string }>>([
     { name: 'Commercial Bank of Ethiopia (CBE)', accNo: '1000 4829 10482', holder: 'BidLow Auctions PLC (Admin Official)' },
@@ -105,8 +108,9 @@ export default function Wallet() {
       });
   }, []);
 
-  function handleOpenModal(method: 'Chapa' | 'Manual') {
+  function handleOpenModal(method: 'Chapa' | 'Manual', mode: 'deposit' | 'withdraw' = 'deposit') {
     setSelectedMethod(method);
+    setChapaMode(mode);
     setAmount('500');
     setReference(method === 'Chapa' ? '' : `TXN-${Date.now().toString().slice(-6)}`);
     setNotes('');
@@ -130,22 +134,58 @@ export default function Wallet() {
 
     try {
       if (selectedMethod === 'Chapa') {
-        // ── Real Chapa integration ──────────────────────────────────────
-        if (amt < 10) {
-          setMsg('Minimum Chapa deposit is 10 ETB.');
-          setMsgType('error');
-          setLoading(false);
-          return;
-        }
-        const res = await walletApi.chapaInitialize(amt);
-        if (res.success && res.data?.checkout_url) {
-          setMsg('Redirecting to Chapa checkout…');
-          setMsgType('info');
-          // Redirect to Chapa
-          window.location.href = res.data.checkout_url;
+        if (chapaMode === 'deposit') {
+          // ── Real Chapa deposit gateway ──────────────────────────────
+          if (amt < 10) {
+            setMsg('Minimum Chapa deposit is 10 ETB.');
+            setMsgType('error');
+            setLoading(false);
+            return;
+          }
+          const res = await walletApi.chapaInitialize(amt);
+          if (res.success && res.data?.checkout_url) {
+            setMsg('Redirecting to Chapa checkout…');
+            setMsgType('info');
+            window.location.href = res.data.checkout_url;
+          } else {
+            setMsg('Failed to initialize Chapa payment. Please try again.');
+            setMsgType('error');
+          }
         } else {
-          setMsg('Failed to initialize Chapa payment. Please try again.');
-          setMsgType('error');
+          // ── Chapa withdrawal request (queue) ────────────────────────
+          const userBal = currentUser?.walletBalance ?? 0;
+          if (amt > userBal) {
+            setMsg(`Insufficient balance. You have ${userBal} ETB available.`);
+            setMsgType('error');
+            setLoading(false);
+            return;
+          }
+          if (!reference && !notes) {
+            setMsg('Please enter your account number or withdrawal details in the notes.');
+            setMsgType('error');
+            setLoading(false);
+            return;
+          }
+          const res = await walletApi.submitDeposit({
+            amount: -amt,
+            credits: -amt,
+            payment_method: 'Chapa Withdrawal',
+            reference_number: reference || `CHAPA-WD-${Date.now().toString().slice(-6)}`,
+            receipt_image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400',
+            notes: notes || `Chapa withdrawal request of ${amt} ETB`,
+          });
+          if (res?.data) {
+            setPaymentQueue(prev => [res.data, ...(prev || [])]);
+          }
+          setMsg('✅ Chapa withdrawal request submitted! Admin will verify and transfer funds.');
+          setMsgType('success');
+          setTimeout(() => {
+            setAmount('');
+            setReference('');
+            setNotes('');
+            setSelectedMethod(null);
+            setShowModal(false);
+          }, 1800);
         }
       } else {
         // ── Manual bank deposit ────────────────────────────────────────
@@ -376,14 +416,9 @@ export default function Wallet() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* METHOD 1: CHAPA */}
-            <div
-              onClick={() => handleOpenModal('Chapa')}
-              role="button"
-              tabIndex={0}
-              className="group relative rounded-3xl border-2 border-slate-200 hover:border-purple-500 bg-gradient-to-b from-slate-50 to-purple-50/20 p-6 transition-all duration-300 hover:shadow-xl cursor-pointer flex flex-col justify-between"
-            >
+            <div className="group relative rounded-3xl border-2 border-slate-200 hover:border-purple-500 bg-gradient-to-b from-slate-50 to-purple-50/20 p-6 transition-all duration-300 hover:shadow-xl flex flex-col justify-between">
               <div className="flex items-start justify-between">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-2 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-2 shadow-md flex items-center justify-center">
                   <ChapaLogo />
                 </div>
                 <span className="px-3 py-1 bg-purple-100 text-purple-700 font-extrabold text-[10px] rounded-full uppercase tracking-wider">
@@ -392,17 +427,30 @@ export default function Wallet() {
               </div>
 
               <div className="mt-4">
-                <h3 className="text-base font-black text-slate-900 group-hover:text-purple-600 transition-colors">
+                <h3 className="text-base font-black text-slate-900">
                   Chapa Payment
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Instant online checkout supporting Telebirr, CBE Birr, Mobile Banking, and Debit/Credit Cards.
+                  Instant checkout via Telebirr, CBE Birr, Mobile Banking, and Debit/Credit Cards.
                 </p>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-bold text-purple-600">
-                <span>Top up with Chapa</span>
-                <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {/* Deposit / Withdraw split buttons */}
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenModal('Chapa', 'deposit')}
+                  className="py-2.5 text-xs font-black rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-md shadow-purple-900/30 flex items-center justify-center gap-1.5"
+                >
+                  <CreditCard className="w-3.5 h-3.5" /> Deposit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenModal('Chapa', 'withdraw')}
+                  className="py-2.5 text-xs font-black rounded-xl bg-rose-600 hover:bg-rose-500 text-white transition-all shadow-md shadow-rose-900/30 flex items-center justify-center gap-1.5"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" /> Withdraw
+                </button>
               </div>
             </div>
 
@@ -555,15 +603,43 @@ export default function Wallet() {
               </div>
               <div>
                 <h3 className="font-black text-slate-900 text-lg">
-                  {selectedMethod === 'Chapa' ? 'Top Up via Chapa Gateway' : 'Manual Deposit & Bank Transfer'}
+                  {selectedMethod === 'Chapa'
+                    ? (chapaMode === 'deposit' ? '⚡ Chapa Deposit' : '💸 Chapa Withdrawal Request')
+                    : 'Manual Deposit & Bank Transfer'}
                 </h3>
                 <p className="text-xs text-slate-500">
                   {selectedMethod === 'Chapa'
-                    ? 'Enter deposit amount to initiate digital payment.'
+                    ? (chapaMode === 'deposit'
+                      ? 'Enter deposit amount to initiate instant digital payment.'
+                      : 'Submit a withdrawal request. Admin will transfer funds to your account.')
                     : 'Transfer funds to our bank account and attach transaction proof.'}
                 </p>
               </div>
             </div>
+
+            {/* Chapa Deposit/Withdraw mode toggle inside modal */}
+            {selectedMethod === 'Chapa' && (
+              <div className="grid grid-cols-2 gap-2 mb-4 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => { setChapaMode('deposit'); setMsg(''); }}
+                  className={`py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    chapaMode === 'deposit' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <CreditCard className="w-3.5 h-3.5" /> Deposit via Chapa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setChapaMode('withdraw'); setMsg(''); }}
+                  className={`py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    chapaMode === 'withdraw' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" /> Withdraw Funds
+                </button>
+              </div>
+            )}
 
             {/* Preset Amount Pills */}
             <div className="mb-4">
@@ -597,6 +673,40 @@ export default function Wallet() {
             </div>
 
 
+
+            {/* Chapa Withdrawal — account & notes fields */}
+            {selectedMethod === 'Chapa' && chapaMode === 'withdraw' && (
+              <div className="space-y-3 pt-1 pb-2">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold flex items-start gap-2">
+                  <ArrowUpRight className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
+                  <span>Your withdrawal will be processed by admin and sent to your registered payment account. Provide details below.</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    Your Account / Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 0911 002 233 or 1000 4829 10482"
+                    value={reference}
+                    onChange={e => setReference(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-rose-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    Withdrawal Notes (Bank / Method)
+                  </label>
+                  <textarea
+                    placeholder="e.g. Telebirr – 0911 002 233, or CBE – 1000 4829 10482"
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    rows={2}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:outline-none focus:border-rose-400 resize-none"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Additional Inputs — Manual only */}
             {selectedMethod === 'Manual' && (
