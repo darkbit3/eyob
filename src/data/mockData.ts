@@ -12,6 +12,7 @@ export interface User {
   photo?: string;
   role: UserRole;
   walletBalance: number;
+  credits?: number;
   status: 'active' | 'suspended';
   joinedAt: string;
   wonAuctions: string[];

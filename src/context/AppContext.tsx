@@ -139,6 +139,55 @@ function apiToBid(b: any): Bid {
   };
 }
 
+function apiToNotification(n: any): Notification {
+  return {
+    id: n.id,
+    userId: n.user_id ?? n.userId ?? '',
+    type: n.type ?? 'system',
+    title: n.title ?? 'Notification',
+    message: n.message ?? '',
+    read: Boolean(n.is_read ?? n.read ?? false),
+    timestamp: n.created_at ?? n.timestamp ?? new Date().toISOString(),
+  };
+}
+
+// ── Web Audio Chime Synthesizer ───────────────────────────────────────────────
+function playNotificationSound() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    
+    // Play pleasant high chime (two harmonic tones)
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(880, ctx.currentTime); // A5
+    osc2.frequency.exponentialRampToValueAtTime(1174.66, ctx.currentTime + 0.2); // D6
+
+    gainNode.gain.setValueAtTime(0.001, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+
+    osc1.connect(gainNode);
+    osc2.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    osc1.start(ctx.currentTime);
+    osc2.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.45);
+    osc2.stop(ctx.currentTime + 0.45);
+  } catch (_e) {
+    // AudioContext autoplay permission or unsupported
+  }
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUserState] = useState<User | null>(null);
   const [auctions, setAuctions] = useState<Auction[]>([]);
@@ -189,9 +238,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then(res => setTransactions(res.data))
       .catch(() => {});
 
-    // Load notifications
+    // Load notifications with sound check
     notificationsApi.my()
-      .then(res => setNotifications(res.data))
+      .then(res => {
+        const notifs = (res.data || []).map(apiToNotification);
+        setNotifications(notifs);
+        const hasUnread = notifs.some((n: any) => !n.read);
+        if (hasUnread) {
+          setTimeout(playNotificationSound, 800);
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -240,7 +296,73 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Poll current user profile to keep walletBalance in sync after backend changes
+  // ── Live WebSocket connection: Real-time balance and transaction push ────────
+  useEffect(() => {
+    if (!currentUser) return;
+    const token = getToken();
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: number | undefined;
+
+    function connect() {
+      try {
+        const isSecure = window.location.protocol === 'https:';
+        const wsProto = isSecure ? 'wss:' : 'ws:';
+        const host = window.location.hostname === 'localhost' ? 'localhost:3000' : 'eyob-backend.onrender.com';
+        const wsUrl = `${wsProto}//${host}/ws?token=${token || ''}`;
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          if (token && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'auth', token }));
+          }
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'balance_updated') {
+              // Instantly update current user balance in memory without reload
+              if (data.wallet_balance !== undefined) {
+                setCurrentUserState(prev => prev ? {
+                  ...prev,
+                  walletBalance: Number(data.wallet_balance),
+                  credits: data.credits !== undefined ? Number(data.credits) : prev.credits,
+                } : null);
+              }
+              // Refresh user and transaction ledger immediately
+              void refreshCurrentUser();
+              walletApi.myTransactions().then(r => setTransactions(r.data || [])).catch(() => {});
+              notificationsApi.my().then(r => setNotifications((r.data || []).map(apiToNotification))).catch(() => {});
+              playNotificationSound();
+            }
+          } catch (_e) {}
+        };
+
+        ws.onclose = () => {
+          reconnectTimeout = window.setTimeout(connect, 5000);
+        };
+
+        ws.onerror = () => {
+          if (ws) ws.close();
+        };
+      } catch (_e) {
+        reconnectTimeout = window.setTimeout(connect, 5000);
+      }
+    }
+
+    connect();
+
+    return () => {
+      if (reconnectTimeout) window.clearTimeout(reconnectTimeout);
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
+    };
+  }, [currentUser?.id]);
+
+  // Poll current user profile as a fallback heartbeat
   useEffect(() => {
     let id: number | undefined;
     async function poll() {
@@ -251,7 +373,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     if (currentUser) {
       poll();
-      id = window.setInterval(poll, 30000);
+      id = window.setInterval(poll, 15000);
     }
     return () => { if (id) window.clearInterval(id); };
   }, [currentUser?.id]);
@@ -266,12 +388,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async function pollNotifications() {
       try {
         const res = await notificationsApi.my();
-        setNotifications(res.data);
+        const fresh = (res.data || []).map(apiToNotification);
+        setNotifications(prev => {
+          const prevUnreadCount = prev.filter(n => !n.read).length;
+          const freshUnreadCount = fresh.filter(n => !n.read).length;
+          if (freshUnreadCount > prevUnreadCount) {
+            playNotificationSound();
+          }
+          return fresh;
+        });
       } catch (e) {}
     }
     if (currentUser) {
       pollNotifications();
-      id = window.setInterval(pollNotifications, 30000);
+      id = window.setInterval(pollNotifications, 10000);
     }
     return () => { if (id) window.clearInterval(id); };
   }, [currentUser?.id]);
@@ -293,7 +423,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .then(res => setTransactions(res.data))
         .catch(() => {});
       notificationsApi.my()
-        .then(res => setNotifications(res.data))
+        .then(res => {
+          const notifs = (res.data || []).map(apiToNotification);
+          setNotifications(notifs);
+          if (notifs.some(n => !n.read)) playNotificationSound();
+        })
         .catch(() => {});
     }
   }

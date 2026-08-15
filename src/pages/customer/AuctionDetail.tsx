@@ -444,6 +444,9 @@ export default function AuctionDetail() {
               <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 text-sm flex items-center gap-2"><Gavel className="w-4 h-4 text-blue-600" /> Submit Your Bid</span>
+                  <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full">
+                    Fee: {auction.bidPerCost ?? 100} ETB / bid
+                  </span>
                 </div>
                 <form onSubmit={handleBid} className="flex gap-2">
                   <input type="number" value={bidAmount} onChange={e => setBidAmount(validateBidAmount(e.target.value))}
