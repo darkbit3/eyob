@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDate, formatCurrency } from '../../utils/countdown';
+import { bidsApi } from '../../utils/api';
+import { Bid } from '../../data/mockData';
 import {
   Shield, Trophy, CheckCircle, XCircle, Search,
   ChevronDown, BarChart2, Hash, Sparkles, Info,
-  ArrowUpDown, AlertCircle, Eye,
+  ArrowUpDown, AlertCircle, Eye, Clock, Package, Users, TrendingDown,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -27,7 +29,7 @@ function buildHash(auctionId: string, bids: { amount: number; bidderId: string }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function FairnessAudit() {
-  const { auctions, bids } = useApp();
+  const { auctions, products } = useApp();
 
   const closedAuctions = useMemo(
     () => auctions.filter(a => a.status === 'closed'),
@@ -41,17 +43,38 @@ export default function FairnessAudit() {
   const [activeTab, setActiveTab] = useState<'algorithm' | 'frequency' | 'log'>('algorithm');
   const [showHashInfo, setShowHashInfo] = useState(false);
 
-  const auction = useMemo(
-    () => auctions.find(a => a.id === selectedId),
-    [auctions, selectedId]
-  );
+  // ── Live bids from API ──────────────────────────────────────────────────
+  const [rawBids, setRawBids] = useState<Bid[]>([]);
+  const [bidsLoading, setBidsLoading] = useState(false);
 
-  const rawBids = useMemo(
-    () => bids.filter(b => b.auctionId === selectedId),
-    [bids, selectedId]
-  );
+  useEffect(() => {
+    if (!selectedId) return;
+    let cancelled = false;
+    setBidsLoading(true);
+    setRawBids([]);
+    bidsApi.forAuction(selectedId)
+      .then(res => {
+        if (cancelled) return;
+        setRawBids((res.data || []).map((b: any) => ({
+          id: b.id,
+          auctionId: b.auction_id ?? selectedId,
+          bidderId: b.bidder_id ?? b.bidderId ?? '',
+          maskedBidderId: b.masked_bidder_id ?? b.maskedBidderId ?? `BDR-${String(b.bidder_id ?? '').slice(-4)}`,
+          amount: Number(b.amount ?? 0),
+          timestamp: b.created_at ?? b.timestamp ?? new Date().toISOString(),
+          isDuplicate: Boolean(b.is_duplicate ?? false),
+          isLowestUnique: Boolean(b.is_lowest_unique ?? false),
+        })));
+      })
+      .catch(() => { if (!cancelled) setRawBids([]); })
+      .finally(() => { if (!cancelled) setBidsLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedId]);
 
   // ── Core bid analysis ────────────────────────────────────────────────────
+  const auction = useMemo(() => auctions.find(a => a.id === selectedId), [auctions, selectedId]);
+  const linkedProduct = useMemo(() => auction?.productId ? products.find(p => p.id === auction.productId) : undefined, [auction, products]);
+
   const freqMap = useMemo(() => {
     const m: Record<number, number> = {};
     rawBids.forEach(b => { m[b.amount] = (m[b.amount] ?? 0) + 1; });
@@ -189,11 +212,11 @@ export default function FairnessAudit() {
             <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Auditable Auctions</p>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-            <p className="text-2xl font-black text-white">{rawBids.length}</p>
+            <p className="text-2xl font-black text-white">{bidsLoading ? '…' : rawBids.length}</p>
             <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Bids in Selected</p>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-            <p className="text-2xl font-black text-emerald-400">{uniqueAmounts.length}</p>
+            <p className="text-2xl font-black text-emerald-400">{bidsLoading ? '…' : uniqueAmounts.length}</p>
             <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Unique Bids</p>
           </div>
         </div>
@@ -232,7 +255,7 @@ export default function FairnessAudit() {
         <>
           {/* ── Auction Info Bar ───────────────────────────────────────────── */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 sm:p-5">
+            <div className="flex flex-col sm:flex-row items-start gap-4 p-4 sm:p-5">
               <img
                 src={auction.image}
                 alt={auction.title}
@@ -246,22 +269,38 @@ export default function FairnessAudit() {
                   </span>
                   <span className="badge-closed text-[10px] px-2 py-0.5">✓ Closed</span>
                 </div>
-                <h2 className="text-base font-black text-slate-900 mt-1 truncate">{auction.title}</h2>
-                <p className="text-xs text-slate-500 mt-0.5">{auction.description}</p>
+                <h2 className="text-base font-black text-slate-900 mt-1">{auction.title}</h2>
+                {/* Product */}
+                {linkedProduct && (
+                  <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                    <Package className="w-3.5 h-3.5 text-purple-500" />
+                    Product: <span className="font-semibold text-slate-700">{linkedProduct.name}</span>
+                  </p>
+                )}
+                {/* Closing Time */}
+                <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-rose-500" />
+                  Closed: <span className="font-semibold text-slate-700">{formatDate(auction.endTime)}</span>
+                </p>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-shrink-0 text-center">
-                {[
-                  { label: 'Bid Per Cost', value: formatCurrency(auction.bidPerCost || auction.retailValue), color: 'text-slate-900' },
-                  { label: 'Bid Range', value: `${auction.minBid}–${auction.maxBid} ETB`, color: 'text-blue-600' },
-                  { label: 'Participants', value: auction.totalParticipants, color: 'text-slate-900' },
-                  { label: 'Total Bids', value: rawBids.length, color: 'text-slate-900' },
-                ].map(s => (
-                  <div key={s.label} className="bg-slate-50 border border-slate-100 rounded-xl p-2.5">
-                    <p className={`text-sm font-black ${s.color}`}>{s.value}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{s.label}</p>
-                  </div>
-                ))}
-              </div>
+            </div>
+
+            {/* Stats grid — all required by spec */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 px-4 sm:px-5 pb-4">
+              {[
+                { label: 'Total Participants', value: bidsLoading ? '…' : new Set(rawBids.map(b => b.bidderId)).size, icon: <Users className="w-3.5 h-3.5 text-purple-500" />, color: 'text-slate-900' },
+                { label: 'Total Bids', value: bidsLoading ? '…' : rawBids.length, icon: <TrendingDown className="w-3.5 h-3.5 text-blue-500" />, color: 'text-slate-900' },
+                { label: 'Unique Bids', value: bidsLoading ? '…' : uniqueAmounts.length, icon: <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />, color: 'text-emerald-700' },
+                { label: 'Duplicate Bids', value: bidsLoading ? '…' : rawBids.length - uniqueAmounts.length, icon: <XCircle className="w-3.5 h-3.5 text-rose-500" />, color: 'text-rose-600' },
+                { label: 'Lowest Unique', value: bidsLoading ? '…' : lowestUnique !== null ? `${lowestUnique} ETB` : '—', icon: <Trophy className="w-3.5 h-3.5 text-amber-500" />, color: 'text-amber-700' },
+                { label: 'Retail Value', value: formatCurrency(auction.retailValue), icon: <Hash className="w-3.5 h-3.5 text-slate-400" />, color: 'text-slate-700' },
+              ].map(s => (
+                <div key={s.label} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">{s.icon}</div>
+                  <p className={`text-sm font-black ${s.color}`}>{s.value}</p>
+                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5 leading-tight">{s.label}</p>
+                </div>
+              ))}
             </div>
 
             {/* Hash strip */}
@@ -324,6 +363,12 @@ export default function FairnessAudit() {
           )}
 
           {/* ── Tab Navigation ─────────────────────────────────────────────── */}
+          {bidsLoading && (
+            <div className="flex items-center justify-center gap-2 py-6 text-slate-500 text-sm bg-white rounded-2xl border border-slate-200">
+              <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              Loading bids from database…
+            </div>
+          )}
           <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full sm:w-auto overflow-x-auto">
             {([
               { key: 'algorithm', label: 'Algorithm Steps', icon: <Shield className="w-3.5 h-3.5" /> },
