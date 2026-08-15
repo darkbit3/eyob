@@ -206,6 +206,7 @@ export default function AuctionDetail() {
   }
 
   const isClosed = auction?.status === 'closed' || isSimulatedClosed;
+  const isLive = auction?.status === 'active' && !isSimulatedClosed;
 
   if (!auction) return (
     <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 p-8 space-y-4">
@@ -217,6 +218,10 @@ export default function AuctionDetail() {
 
   function handleBid(e: React.FormEvent) {
     e.preventDefault();
+    if (auction!.status !== 'active') {
+      setBidResult({ ok: false, msg: 'This auction is not currently active.' });
+      return;
+    }
     const amount = parseInt(bidAmount);
     if (isNaN(amount) || amount < auction!.minBid || amount > auction!.maxBid) {
       setBidResult({ ok: false, msg: `Bid must be between ${auction!.minBid} and ${auction!.maxBid} ETB.` });
@@ -358,7 +363,7 @@ export default function AuctionDetail() {
             )}
           </div>
 
-          {!isClosed && (
+          {isLive && (
             <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-slate-900 text-sm flex items-center gap-2"><Gavel className="w-4 h-4 text-blue-600" /> Submit Your Bid</span>
@@ -375,6 +380,20 @@ export default function AuctionDetail() {
                   <span>{bidResult.msg}</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {!isLive && !isClosed && (
+            <div className={`rounded-2xl p-4 text-sm font-semibold flex items-center gap-2 border ${
+              auction.status === 'paused'
+                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                : auction.status === 'upcoming'
+                ? 'bg-blue-50 text-blue-800 border-blue-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200'
+            }`}>
+              {auction.status === 'paused'   && '⏸ Bidding is paused for this auction.'}
+              {auction.status === 'upcoming' && "🕐 This auction hasn't started yet. Check back soon."}
+              {auction.status === 'draft'    && '📝 This auction is not yet published.'}
             </div>
           )}
         </div>

@@ -88,6 +88,10 @@ export default function AuctionList() {
   function handlePopupBid(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedAuction) return;
+    if (selectedAuction.status !== 'active') {
+      setBidResult({ ok: false, msg: 'This auction is not currently active.' });
+      return;
+    }
     const amount = Number(bidAmount);
     if (isNaN(amount) || amount < selectedAuction.minBid || amount > selectedAuction.maxBid) {
       setBidResult({ ok: false, msg: `Enter a valid bid between ${selectedAuction.minBid} and ${selectedAuction.maxBid} ETB.` });
