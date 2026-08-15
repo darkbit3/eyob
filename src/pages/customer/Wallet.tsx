@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/countdown';
-import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, CreditCard, Building2, ExternalLink, ShieldCheck, Copy, Check, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, CreditCard, Building2, ExternalLink, ShieldCheck, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { ChapaLogo, ManualPaymentLogo } from '../../components/PaymentMethodLogos';
 import { walletApi } from '../../utils/api';
 
@@ -18,7 +18,7 @@ export default function Wallet() {
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [receipt, setReceipt] = useState('');
-  const [copiedBank, setCopiedBank] = useState(false);
+
 
   // Manual deposit proof mode & image import
   const [manualProofMode, setManualProofMode] = useState<'ref_id' | 'image'>('ref_id');
@@ -97,11 +97,7 @@ export default function Wallet() {
     setShowModal(true);
   }
 
-  function handleCopyAcc(accNo: string) {
-    navigator.clipboard.writeText(accNo);
-    setCopiedBank(true);
-    setTimeout(() => setCopiedBank(false), 2000);
-  }
+
 
   async function handleSubmitDeposit() {
     setMsg('');
@@ -582,33 +578,7 @@ export default function Wallet() {
               />
             </div>
 
-            {/* Manual Payment: Bank Details Display */}
-            {selectedMethod === 'Manual' && (
-              <div className="mb-4 p-4 bg-emerald-50/60 border border-emerald-200/80 rounded-2xl space-y-2">
-                <p className="text-xs font-extrabold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-emerald-600" /> Transfer to Any Official Account:
-                </p>
-                <div className="space-y-2 mt-2">
-                  {bankAccounts.map((b, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 bg-white rounded-xl border border-emerald-100 text-xs">
-                      <div>
-                        <p className="font-bold text-slate-900">{b.name}</p>
-                        <p className="text-[10px] text-slate-500">{b.holder}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyAcc(b.accNo)}
-                        className="flex items-center gap-1 font-mono font-bold text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded transition-colors"
-                        title="Click to copy account number"
-                      >
-                        {b.accNo}
-                        {copiedBank ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+
 
             {/* Additional Inputs — Manual only */}
             {selectedMethod === 'Manual' && (
@@ -766,10 +736,10 @@ export default function Wallet() {
                 } disabled:opacity-50`}
               >
                 {loading
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…</>
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting Deposit…</>
                   : selectedMethod === 'Chapa'
-                  ? <>Pay {amount || 0} ETB via Chapa <ExternalLink className="w-3.5 h-3.5" /></>
-                  : 'Submit Deposit Proof'
+                    ? 'Pay via Chapa →'
+                    : 'Deposit'
                 }
               </button>
             </div>
