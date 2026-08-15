@@ -1,23 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/countdown';
-import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, CreditCard, Building2, ExternalLink, ShieldCheck, Copy, Check } from 'lucide-react';
+import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, CreditCard, Building2, ExternalLink, ShieldCheck, Copy, Check, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { ChapaLogo, ManualPaymentLogo } from '../../components/PaymentMethodLogos';
 import { walletApi } from '../../utils/api';
 
 export default function Wallet() {
-  const { currentUser, transactions, setPaymentQueue } = useApp();
+  const { currentUser, transactions, setPaymentQueue, refreshCurrentUser } = useApp();
   const myTxs = transactions.filter(t => t.userId === currentUser?.id);
 
   const [selectedMethod, setSelectedMethod] = useState<'Chapa' | 'Manual' | null>(null);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [msgType, setMsgType] = useState<'success' | 'error' | 'info'>('info');
   const [showModal, setShowModal] = useState(false);
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [receipt, setReceipt] = useState('');
   const [copiedBank, setCopiedBank] = useState(false);
+
+  // ── Auto-verify Chapa payment on return from checkout ─────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const txRef  = params.get('tx_ref');
+    const status = params.get('status');
+    if (!txRef || status !== 'success') return;
+
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+
+    setMsg('Verifying your Chapa payment…');
+    setMsgType('info');
+
+    walletApi.chapaVerify(txRef)
+      .then(res => {
+        if (res.success && res.data?.status === 'approved') {
+          setMsg(`✅ ${res.message || 'Payment confirmed! Your wallet has been credited.'}`);
+          setMsgType('success');
+          refreshCurrentUser();
+        } else {
+          setMsg('⚠️ Payment is pending confirmation. Check back shortly.');
+          setMsgType('info');
+        }
+      })
+      .catch(() => {
+        setMsg('⚠️ Could not verify payment automatically. Contact support if balance not updated.');
+        setMsgType('error');
+      });
+  }, []);
 
   const bankAccounts = [
     { name: 'Commercial Bank of Ethiopia (CBE)', accNo: '1000 4829 10482', holder: 'BidLow Auctions PLC' },
@@ -28,9 +59,9 @@ export default function Wallet() {
   function handleOpenModal(method: 'Chapa' | 'Manual') {
     setSelectedMethod(method);
     setAmount('500');
-    setReference(method === 'Chapa' ? `CHAPA-${Date.now()}` : `TXN-${Date.now().toString().slice(-6)}`);
+    setReference(method === 'Chapa' ? '' : `TXN-${Date.now().toString().slice(-6)}`);
     setNotes('');
-    setReceipt(method === 'Chapa' ? 'https://chapa.co/receipt/digital-proof' : '');
+    setReceipt('');
     setMsg('');
     setShowModal(true);
   }
@@ -45,48 +76,65 @@ export default function Wallet() {
     setMsg('');
     const amt = Number(amount);
     if (!selectedMethod || !amt || amt <= 0) {
-      setMsg('Please enter a valid deposit amount');
-      return;
-    }
-    if (selectedMethod === 'Manual' && (!reference || !receipt)) {
-      setMsg('Reference number and receipt proof are required for manual deposit');
+      setMsg('Please enter a valid deposit amount.');
+      setMsgType('error');
       return;
     }
 
     setLoading(true);
+
     try {
-      const refNo = reference || `${selectedMethod.toUpperCase()}-${Date.now()}`;
-      const receiptImg = receipt || 'https://bidlow.et/proofs/chapa-instant.png';
-      
-      const res = await walletApi.submitDeposit({
-        amount: amt,
-        credits: amt,
-        payment_method: selectedMethod === 'Chapa' ? 'Chapa Digital' : 'Manual Bank Transfer',
-        reference_number: refNo,
-        receipt_image: receiptImg,
-        notes: notes || `${selectedMethod} wallet deposit submission`
-      });
-
-      if (res && res.data) {
-        setPaymentQueue(prev => [res.data, ...(prev || [])]);
+      if (selectedMethod === 'Chapa') {
+        // ── Real Chapa integration ──────────────────────────────────────
+        if (amt < 10) {
+          setMsg('Minimum Chapa deposit is 10 ETB.');
+          setMsgType('error');
+          setLoading(false);
+          return;
+        }
+        const res = await walletApi.chapaInitialize(amt);
+        if (res.success && res.data?.checkout_url) {
+          setMsg('Redirecting to Chapa checkout…');
+          setMsgType('info');
+          // Redirect to Chapa
+          window.location.href = res.data.checkout_url;
+        } else {
+          setMsg('Failed to initialize Chapa payment. Please try again.');
+          setMsgType('error');
+        }
+      } else {
+        // ── Manual bank deposit ────────────────────────────────────────
+        if (!reference || !receipt) {
+          setMsg('Reference number and receipt proof are required for manual deposit.');
+          setMsgType('error');
+          setLoading(false);
+          return;
+        }
+        const res = await walletApi.submitDeposit({
+          amount: amt,
+          credits: amt,
+          payment_method: 'Manual Bank Transfer',
+          reference_number: reference,
+          receipt_image: receipt,
+          notes: notes || 'Manual bank deposit submission',
+        });
+        if (res?.data) {
+          setPaymentQueue(prev => [res.data, ...(prev || [])]);
+        }
+        setMsg('✅ Manual deposit submitted! Admin will verify your bank receipt shortly.');
+        setMsgType('success');
+        setTimeout(() => {
+          setAmount('');
+          setReference('');
+          setNotes('');
+          setReceipt('');
+          setSelectedMethod(null);
+          setShowModal(false);
+        }, 1800);
       }
-
-      setMsg(
-        selectedMethod === 'Chapa'
-          ? 'Chapa payment processed successfully! Admin will confirm your balance.'
-          : 'Manual deposit submitted! Admin will verify your bank receipt shortly.'
-      );
-
-      setTimeout(() => {
-        setAmount('');
-        setReference('');
-        setNotes('');
-        setReceipt('');
-        setSelectedMethod(null);
-        setShowModal(false);
-      }, 1800);
     } catch (err: any) {
       setMsg(err?.message || 'Deposit submission failed. Please try again.');
+      setMsgType('error');
     } finally {
       setLoading(false);
     }

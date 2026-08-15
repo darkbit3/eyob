@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { ROUTES } from '../../utils/routes';
 import CountdownTimer from '../../components/CountdownTimer';
 import { formatCurrency, formatDate } from '../../utils/countdown';
@@ -17,6 +18,7 @@ export default function Dashboard() {
     notifications,
     markNotificationRead,
   } = useApp();
+  const { t } = useLanguage();
 
   const activeAuctions  = auctions.filter(a => a.status === 'active');
   const upcomingAuctions = auctions.filter(a => a.status === 'upcoming');
@@ -40,10 +42,10 @@ export default function Dashboard() {
           </div>
           <div>
             <h1 className="text-xl sm:text-3xl font-black tracking-tight">
-              Welcome back, {currentUser?.name ?? 'Customer'}!
+              {t('hero_title')}
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm mt-1">
-              Member since {currentUser?.joinedAt ?? '2026'} • Account Verified
+              {t('hero_desc')}
             </p>
           </div>
         </div>
@@ -51,7 +53,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-3">
           <Link to={ROUTES.NOTIFICATIONS} className="relative bg-slate-800/80 border border-slate-700 rounded-xl p-3 flex items-center gap-2 hover:bg-slate-700/80 transition-colors">
             <Bell className="w-5 h-5 text-emerald-400" />
-            <span className="text-xs font-bold text-slate-200">{unread} Unread</span>
+            <span className="text-xs font-bold text-slate-200">{unread} {t('alerts')}</span>
             {unread > 0 && (
               <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center">
                 {unread}
@@ -67,7 +69,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <span className="text-xs font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Wallet className="w-4 h-4 text-emerald-600" /> Wallet
+              <Wallet className="w-4 h-4 text-emerald-600" /> {t('wallet')}
             </span>
             <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Active</span>
           </div>
@@ -78,17 +80,17 @@ export default function Dashboard() {
             </p>
           </div>
           <Link to={ROUTES.WALLET} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 text-center transition-colors block">
-            Manage Wallet
+            {t('wallet')}
           </Link>
         </div>
 
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <History className="w-4 h-4 text-emerald-600" /> Recent Transactions
+              <History className="w-4 h-4 text-emerald-600" /> {t('transaction_history')}
             </h3>
             <Link to={ROUTES.WALLET} className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
-              View All <ArrowRight className="w-3.5 h-3.5" />
+              {t('view_details')} <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
           <div className="divide-y divide-slate-100 text-xs">
@@ -103,7 +105,7 @@ export default function Dashboard() {
                 </span>
               </div>
             )) : (
-              <div className="py-6 text-center text-slate-400">No transactions yet.</div>
+              <div className="py-6 text-center text-slate-400">{t('no_transactions')}</div>
             )}
           </div>
         </div>
@@ -117,7 +119,7 @@ export default function Dashboard() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
             </span>
-            Live Auctions ({activeAuctions.length})
+            {t('active_auctions')} ({activeAuctions.length})
           </h2>
           <Link to={ROUTES.AUCTIONS} className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
             View All <ArrowRight className="w-3.5 h-3.5" />

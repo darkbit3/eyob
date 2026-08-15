@@ -3,6 +3,7 @@ import { Auction } from '../data/mockData';
 import CountdownTimer from './CountdownTimer';
 import { formatCurrency, getAuctionDisplayStatus } from '../utils/countdown';
 import { ROUTES } from '../utils/routes';
+import { useLanguage } from '../context/LanguageContext';
 import { Users, TrendingDown, ArrowRight } from 'lucide-react';
 
 export default function AuctionCard({
@@ -13,6 +14,7 @@ export default function AuctionCard({
   onClick?: () => void;
 }) {
   const nav = useNavigate();
+  const { t } = useLanguage();
 
   const displayStatus = getAuctionDisplayStatus(auction.status, auction.startTime, auction.endTime);
   const isActive = displayStatus === 'active';
@@ -50,7 +52,7 @@ export default function AuctionCard({
         <div className="absolute bottom-3 right-3">
           {isClosed && auction.lowestUniqueBid ? (
             <span className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md">
-              🏆 Won: {auction.lowestUniqueBid.toFixed(1)} ETB
+              🏆 {t('winner')}: {auction.lowestUniqueBid.toFixed(1)} ETB
             </span>
           ) : (isActive || isUpcoming) ? (
             <div className="bg-slate-900/80 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
@@ -83,12 +85,12 @@ export default function AuctionCard({
         {/* Price row */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Bid Per Cost</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">{t('bid_cost')}</p>
             <p className="text-sm font-extrabold text-slate-800">{formatCurrency(auction.bidPerCost || auction.retailValue)}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Bid Range</p>
-            <p className="text-sm font-bold text-blue-600">{auction.minBid}–{auction.maxBid} ETB</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">{t('retail_value')}</p>
+            <p className="text-sm font-bold text-emerald-600">{formatCurrency(auction.retailValue)}</p>
           </div>
         </div>
 
@@ -96,12 +98,12 @@ export default function AuctionCard({
         <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
           <div className="flex items-center gap-3 text-[11px] text-slate-500 font-semibold">
             <span className="flex items-center gap-1"><Users className="w-3 h-3 text-purple-500" />{auction.totalParticipants}</span>
-            <span className="flex items-center gap-1"><TrendingDown className="w-3 h-3 text-blue-500" />{auction.totalBids} bids</span>
+            <span className="flex items-center gap-1"><TrendingDown className="w-3 h-3 text-blue-500" />{auction.totalBids} {t('total_bids')}</span>
           </div>
-          <div className="flex items-center gap-1 text-[11px] font-bold text-blue-600">
-            {isActive ? 'Bid Now' : isUpcoming ? 'Remind Me' : 'View Result'}
-            <ArrowRight className="w-3.5 h-3.5" />
-          </div>
+
+          <span className="text-xs font-bold text-emerald-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+            {t('view_details')} <ArrowRight className="w-3.5 h-3.5" />
+          </span>
         </div>
       </div>
     </div>

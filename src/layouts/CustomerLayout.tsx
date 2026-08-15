@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useLanguage } from '../context/LanguageContext';
 import { ROUTES } from '../utils/routes';
 import NotificationDropdown from '../components/NotificationDropdown';
+import LanguageSelector from '../components/LanguageSelector';
 import {
   Gavel, LayoutDashboard, Wallet, LogOut, ShieldCheck,
   Sparkles, Coins, History, Home, Search, Trophy,
@@ -11,6 +13,7 @@ import {
 
 export default function CustomerLayout() {
   const { currentUser, setCurrentUser, bids } = useApp();
+  const { t } = useLanguage();
   const nav = useNavigate();
   const loc = useLocation();
 
@@ -46,18 +49,18 @@ export default function CustomerLayout() {
   }
 
   const desktopLinks = [
-    { to: ROUTES.DASHBOARD,      icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard' },
-    { to: ROUTES.AUCTIONS,       icon: <Gavel className="w-4 h-4" />,           label: 'Browse Auctions' },
-    { to: ROUTES.WALLET,         icon: <Wallet className="w-4 h-4" />,          label: 'Wallet' },
-    { to: ROUTES.FAIRNESS_AUDIT, icon: <ShieldCheck className="w-4 h-4" />,     label: 'Fairness Audit' },
+    { to: ROUTES.DASHBOARD,      icon: <LayoutDashboard className="w-4 h-4" />, label: t('dashboard') },
+    { to: ROUTES.AUCTIONS,       icon: <Gavel className="w-4 h-4" />,           label: t('browse_auctions') },
+    { to: ROUTES.WALLET,         icon: <Wallet className="w-4 h-4" />,          label: t('wallet') },
+    { to: ROUTES.FAIRNESS_AUDIT, icon: <ShieldCheck className="w-4 h-4" />,     label: t('fairness_audit') },
   ];
 
   const mobileNavTabs = [
-    { to: ROUTES.DASHBOARD,      icon: Home,    label: 'Home' },
-    { to: ROUTES.AUCTIONS,       icon: Search,  label: 'Auctions' },
-    { to: ROUTES.MY_BIDS,        icon: History, label: 'My Bids', badge: userBidsCount },
-    { to: ROUTES.NOTIFICATIONS,  icon: Bell,    label: 'Alerts' },
-    { to: ROUTES.FAIRNESS_AUDIT, icon: Trophy,  label: 'Audit' },
+    { to: ROUTES.DASHBOARD,      icon: Home,    label: t('home') },
+    { to: ROUTES.AUCTIONS,       icon: Search,  label: t('browse_auctions') },
+    { to: ROUTES.MY_BIDS,        icon: History, label: t('my_bids'), badge: userBidsCount },
+    { to: ROUTES.NOTIFICATIONS,  icon: Bell,    label: t('alerts') },
+    { to: ROUTES.FAIRNESS_AUDIT, icon: Trophy,  label: t('audit') },
   ];
 
   return (
@@ -65,8 +68,8 @@ export default function CustomerLayout() {
       {/* Top Banner Notice */}
       <div className="bg-emerald-700 text-white text-xs py-2 px-4 text-center font-bold flex items-center justify-center gap-2 shadow-inner">
         <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-        <span>Welcome to <strong>BidLow</strong> — Ethiopia's premier Lowest Unique Bid Auction Platform!</span>
-        <span className="hidden md:inline-block bg-white/20 px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-extrabold">100% Provably Fair</span>
+        <span>{t('welcome_banner')}</span>
+        <span className="hidden md:inline-block bg-white/20 px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-extrabold">{t('provably_fair_badge')}</span>
       </div>
 
       {/* Header — White with Bold Green Accents */}
@@ -80,8 +83,8 @@ export default function CustomerLayout() {
                 <Gavel className="w-5 h-5 text-white" />
               </div>
               <div>
-                <span className="font-black text-slate-900 text-xl tracking-tight group-hover:text-emerald-600 transition-colors">BidLow</span>
-                <span className="text-[10px] text-emerald-600 block font-bold uppercase tracking-widest -mt-1">Unique Auctions</span>
+                <span className="font-black text-slate-900 text-xl tracking-tight group-hover:text-emerald-600 transition-colors">{t('app_title')}</span>
+                <span className="text-[10px] text-emerald-600 block font-bold uppercase tracking-widest -mt-1">{t('app_subtitle')}</span>
               </div>
             </Link>
 
@@ -101,13 +104,16 @@ export default function CustomerLayout() {
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-2 sm:gap-3">
+              {/* Language Switcher */}
+              <LanguageSelector />
+
               {/* Credit Pill */}
-              <Link to={ROUTES.WALLET} className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-1.5 rounded-full transition-all duration-300">
+              <Link to={ROUTES.WALLET} className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-full transition-all duration-300">
                 <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-xs">
                   <Coins className="w-3 h-3" />
                 </div>
                 <div className="text-left leading-none">
-                  <span className="text-[9px] text-emerald-700 font-bold block uppercase">Balance</span>
+                  <span className="text-[9px] text-emerald-700 font-bold block uppercase">{t('balance')}</span>
                   <span className="text-xs font-black text-emerald-900">{(currentUser?.walletBalance ?? 0).toLocaleString()}</span>
                 </div>
               </Link>
@@ -115,7 +121,7 @@ export default function CustomerLayout() {
               {/* My Bids Icon — desktop only */}
               <Link to={ROUTES.MY_BIDS}
                 className="hidden md:flex relative p-2.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors items-center justify-center"
-                title="My Bids">
+                title={t('my_bids')}>
                 <History className="w-5 h-5" />
                 {userBidsCount > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-emerald-600 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md">
@@ -142,12 +148,12 @@ export default function CustomerLayout() {
               {currentUser?.role === 'admin' && (
                 <Link to="/admin"
                   className="hidden sm:flex items-center gap-1.5 text-xs bg-emerald-700 text-white px-3 py-1.5 rounded-full font-bold transition-all shadow-sm hover:bg-emerald-800">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Admin
+                  <ShieldCheck className="w-3.5 h-3.5" /> {t('admin')}
                 </Link>
               )}
 
               {/* Logout */}
-              <button onClick={logout} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Logout">
+              <button onClick={logout} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title={t('logout')}>
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
