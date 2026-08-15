@@ -316,10 +316,14 @@ export default function AuctionDetail() {
             )}
             <p className="text-slate-600 text-sm leading-relaxed mt-2">{auction.description}</p>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-center">
               <p className="text-[11px] font-bold text-slate-400 uppercase">Retail Price</p>
               <p className="font-extrabold text-slate-900 text-sm mt-1">{formatCurrency(auction.retailValue)}</p>
+            </div>
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-center">
+              <p className="text-[11px] font-bold text-slate-400 uppercase">Bid Cost</p>
+              <p className="font-extrabold text-blue-600 text-sm mt-1">{formatCurrency(auction.bidPerCost ?? auction.retailValue)}</p>
             </div>
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-center">
               <p className="text-[11px] font-bold text-slate-400 uppercase">Bid Range</p>
