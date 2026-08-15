@@ -500,14 +500,21 @@ export default function AuctionList() {
               {/* Bid form (active) */}
               {selectedAuction.status === 'active' && (
                 <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Gavel className="w-4 h-4 text-indigo-600" />
-                    <span className="font-black text-slate-900 text-sm">Place Your Bid</span>
-                    {myLatestBid && (
-                      <span className="ml-auto text-xs text-indigo-600 font-bold bg-indigo-100 px-2 py-0.5 rounded-full">
-                        Your last: {myLatestBid.amount.toFixed(1)} ETB
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Gavel className="w-4 h-4 text-indigo-600" />
+                      <span className="font-black text-slate-900 text-sm">Place Your Bid</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-extrabold text-indigo-700 bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-full">
+                        Fee: {selectedAuction.bidPerCost ?? 100} ETB / bid
                       </span>
-                    )}
+                      {myLatestBid && (
+                        <span className="text-xs text-indigo-600 font-bold bg-indigo-100 px-2 py-0.5 rounded-full">
+                          Your last: {myLatestBid.amount.toFixed(1)} ETB
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {!currentUser ? (
                     <div className="text-center py-2 space-y-2">

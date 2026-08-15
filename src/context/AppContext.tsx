@@ -6,7 +6,7 @@ import {
 import {
   getToken, removeToken,
   usersApi, auctionsApi, productsApi, bidsApi,
-  walletApi, notificationsApi,
+  walletApi, notificationsApi, settingsApi,
 } from '../utils/api';
 
 interface AppContextType {
@@ -213,17 +213,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then(res => setCurrentUserState(apiToUser(res.data)))
       .catch(() => removeToken());
 
-    // Load auctions
+    // Load auctions from real database
     auctionsApi.list()
       .then(res => setAuctions(res.data.map(apiToAuction)))
-      .catch(() => {/* keep mock */});
+      .catch(() => {});
 
-    // Load unlocked auction IDs for user
+    // Load unlocked auction IDs for this user
     auctionsApi.myUnlocked()
       .then(res => setUnlockedAuctionIds(res.data || []))
       .catch(() => {});
 
-    // Load products
+    // Load products from real database
     productsApi.list()
       .then(res => setProducts(res.data.map(apiToProduct)))
       .catch(() => {});
@@ -236,6 +236,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Load my transactions
     walletApi.myTransactions()
       .then(res => setTransactions(res.data))
+      .catch(() => {});
+
+    // Load system settings from backend
+    settingsApi.get()
+      .then(res => {
+        if (res && res.data) {
+          setSettings(prev => ({ ...prev, ...{
+            platformName: res.data.platform_name ?? res.data.platformName ?? prev.platformName,
+            supportEmail: res.data.support_email ?? res.data.supportEmail ?? prev.supportEmail,
+            currency: res.data.currency ?? prev.currency,
+            minBidPrice: Number(res.data.min_bid_price ?? res.data.minBidPrice ?? prev.minBidPrice),
+            maxBidPrice: Number(res.data.max_bid_price ?? res.data.maxBidPrice ?? prev.maxBidPrice),
+            defaultBidStep: Number(res.data.default_bid_step ?? res.data.defaultBidStep ?? prev.defaultBidStep),
+            autoWinnerVerification: res.data.auto_winner_verification ?? res.data.autoWinnerVerification ?? prev.autoWinnerVerification,
+            maintenanceMode: res.data.maintenance_mode ?? res.data.maintenanceMode ?? prev.maintenanceMode,
+          } }));
+        }
+      })
       .catch(() => {});
 
     // Load notifications with sound check
@@ -382,6 +400,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void refreshMyBids();
   }, [currentUser?.id]);
 
+  // Poll auctions every 20s so statuses, totals, and countdowns stay live
+  useEffect(() => {
+    let id: number | undefined;
+    async function pollAuctions() {
+      try {
+        const res = await auctionsApi.list();
+        setAuctions(res.data.map(apiToAuction));
+      } catch (_e) {}
+    }
+    // Always poll auctions whether logged in or not (public data)
+    pollAuctions();
+    id = window.setInterval(pollAuctions, 20000);
+    return () => { if (id) window.clearInterval(id); };
+  }, []);
+
   // Poll notifications so customers see new auction alerts without needing a manual refresh
   useEffect(() => {
     let id: number | undefined;
@@ -461,17 +494,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   function placeBid(auctionId: string, amount: number): boolean {
     if (!currentUser) return false;
 
+    const targetAuction = auctions.find(a => a.id === auctionId);
+    const bidFee = targetAuction?.bidPerCost ?? 100;
+
     const safeAmount = Number(amount.toFixed(1));
     if (Number.isNaN(safeAmount) || safeAmount <= 0) return false;
-    if (currentUser.walletBalance < safeAmount) return false;
+    if (currentUser.walletBalance < bidFee) return false;
 
     void bidsApi.place(auctionId, safeAmount)
       .then((res) => {
         const bidData = res.data || {};
-        void bidData;
+        const deductedFee = Number(bidData.bid_fee ?? bidFee);
 
         setUsers(prev => prev.map(u => u.id === currentUser.id
-          ? { ...u, walletBalance: Math.max(0, Number(u.walletBalance) - safeAmount) }
+          ? { ...u, walletBalance: Math.max(0, Number(u.walletBalance) - deductedFee) }
           : u
         ));
         setAuctions(prev => prev.map(a => a.id === auctionId ? { ...a, totalBids: a.totalBids + 1 } : a));
@@ -481,8 +517,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           userId: currentUser.id,
           userName: currentUser.name,
           type: 'bid_placed',
-          amount: -safeAmount,
-          description: `Bid of ${safeAmount} ETB placed on auction #${auctionId}`,
+          amount: -deductedFee,
+          description: `Bid fee for "${targetAuction?.title || auctionId}" — bid: ${safeAmount} ETB`,
           timestamp: new Date().toISOString(),
           status: 'completed',
         };
@@ -490,7 +526,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         setCurrentUser({
           ...currentUser,
-          walletBalance: Math.max(0, Number(currentUser.walletBalance) - safeAmount),
+          walletBalance: Math.max(0, Number(currentUser.walletBalance) - deductedFee),
         });
 
         void refreshMyBids();
