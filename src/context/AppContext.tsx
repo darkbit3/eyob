@@ -495,19 +495,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!currentUser) return false;
 
     const targetAuction = auctions.find(a => a.id === auctionId);
-    const bidFee = targetAuction?.bidPerCost ?? 100;
-
     const safeAmount = Number(amount.toFixed(1));
     if (Number.isNaN(safeAmount) || safeAmount <= 0) return false;
-    if (currentUser.walletBalance < bidFee) return false;
+    if (currentUser.walletBalance < safeAmount) return false;
 
     void bidsApi.place(auctionId, safeAmount)
       .then((res) => {
         const bidData = res.data || {};
-        const deductedFee = Number(bidData.bid_fee ?? bidFee);
+        const deductedAmount = Number(bidData.amount ?? safeAmount);
 
         setUsers(prev => prev.map(u => u.id === currentUser.id
-          ? { ...u, walletBalance: Math.max(0, Number(u.walletBalance) - deductedFee) }
+          ? { ...u, walletBalance: Math.max(0, Number(u.walletBalance) - deductedAmount) }
           : u
         ));
         setAuctions(prev => prev.map(a => a.id === auctionId ? { ...a, totalBids: a.totalBids + 1 } : a));
@@ -517,8 +515,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           userId: currentUser.id,
           userName: currentUser.name,
           type: 'bid_placed',
-          amount: -deductedFee,
-          description: `Bid fee for "${targetAuction?.title || auctionId}" — bid: ${safeAmount} ETB`,
+          amount: -deductedAmount,
+          description: `Bid placed on "${targetAuction?.title || auctionId}" — ${safeAmount} ETB`,
           timestamp: new Date().toISOString(),
           status: 'completed',
         };
@@ -526,7 +524,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         setCurrentUser({
           ...currentUser,
-          walletBalance: Math.max(0, Number(currentUser.walletBalance) - deductedFee),
+          walletBalance: Math.max(0, Number(currentUser.walletBalance) - deductedAmount),
         });
 
         void refreshMyBids();

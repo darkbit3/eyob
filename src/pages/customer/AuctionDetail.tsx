@@ -269,7 +269,10 @@ export default function AuctionDetail() {
       if (ok) {
         setBidSubmitState('success');
         setBidSubmitText('You placed bet');
-        setBidResult({ ok: true, msg: `Bid of ${amount.toFixed(1)} ETB placed! Fee: ${auction!.bidPerCost ?? 100} ETB deducted.` });
+        setBidResult({
+          ok: true,
+          msg: `Bid of ${amount.toFixed(1)} ETB placed successfully!`
+        });
         setBidAmount('');
         // Re-fetch bids so stats update instantly
         bidsApi.forAuction(auction!.id)
@@ -444,8 +447,8 @@ export default function AuctionDetail() {
               <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 text-sm flex items-center gap-2"><Gavel className="w-4 h-4 text-blue-600" /> Submit Your Bid</span>
-                  <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full">
-                    Fee: {auction.bidPerCost ?? 100} ETB / bid
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                    🔓 Unlocked
                   </span>
                 </div>
                 <form onSubmit={handleBid} className="flex gap-2">
