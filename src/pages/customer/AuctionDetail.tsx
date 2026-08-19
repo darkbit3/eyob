@@ -115,7 +115,8 @@ export default function AuctionDetail() {
   // ── MODAL STATE ──────────────────────────────────────────────────────────
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [auditPhase, setAuditPhase] = useState<'product_countdown' | 'player_scan' | 'winner_reveal' | null>(null);
-  const [productTimer, setProductTimer] = useState<number>(5);
+  const [productTimer, setProductTimer] = useState<number>(3);
+  const [revealTimer, setRevealTimer] = useState(10);
 
   // ── SCAN ANIMATION STATE ─────────────────────────────────────────────────
   const [revealCount, setRevealCount] = useState(0);
@@ -153,6 +154,14 @@ export default function AuctionDetail() {
     return () => clearTimeout(t);
   }, [showAuditModal, auditPhase, productTimer]);
 
+  useEffect(() => {
+    if (!showAuditModal) return;
+    const timer = window.setInterval(() => {
+      setRevealTimer(value => Math.max(0, value - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [showAuditModal]);
+
   // ── CLEAR ALL TIMERS ─────────────────────────────────────────────────────
   function clearAllTimers() {
     timerRefs.current.forEach(t => clearTimeout(t));
@@ -173,14 +182,14 @@ export default function AuctionDetail() {
     clearAllTimers();
 
     const n = auctionBids.length;
-    // 1. Reveal rows one by one — each 180ms apart
+    // Fixed ten-second reveal schedule: scan, flag duplicates, isolate uniques, reveal winner.
     for (let i = 0; i < n; i++) {
-      push(() => setRevealCount(i + 1), i * 180);
+      push(() => setRevealCount(i + 1), Math.min(i * 80, 1400));
     }
 
-    const allRevealedAt = n * 180 + 200;
+    const allRevealedAt = 1500;
 
-    // 2. Mark duplicates red (staggered, 120ms each)
+    // 2. Mark duplicates red
     push(() => setScanSubStep('mark_red'), allRevealedAt);
     auctionBids.forEach((b, idx) => {
       const isDup = (amountCounts[b.amount] || 1) > 1;
@@ -190,10 +199,10 @@ export default function AuctionDetail() {
           next[idx] = isDup ? 'duplicate' : 'scanning';
           return next;
         });
-      }, allRevealedAt + idx * 120);
+      }, allRevealedAt + Math.min(idx * 50, 1000));
     });
 
-    const redDoneAt = allRevealedAt + n * 120 + 400;
+    const redDoneAt = 3000;
 
     // 3. Mark unique bids green
     push(() => setScanSubStep('mark_green'), redDoneAt);
@@ -207,17 +216,16 @@ export default function AuctionDetail() {
             next[idx] = isWin ? 'winner' : 'unique';
             return next;
           });
-        }, redDoneAt + idx * 80);
+        }, redDoneAt + Math.min(idx * 50, 1000));
       }
     });
 
-    const greenDoneAt = redDoneAt + n * 80 + 600;
+    const greenDoneAt = 5000;
 
-    // 4. Zoom to winner reveal
+    // 4. Hold the completed scan, then reveal the winner at the ten-second mark.
     push(() => {
       setScanSubStep('zoom_winner');
-      // After a brief pause, go to winner_reveal phase
-      push(() => setAuditPhase('winner_reveal'), 1200);
+      push(() => setAuditPhase('winner_reveal'), 2000);
     }, greenDoneAt);
   }
 
@@ -227,7 +235,8 @@ export default function AuctionDetail() {
     setIsSimulatedClosed(true);
     setShowAuditModal(true);
     setAuditPhase('product_countdown');
-    setProductTimer(5);
+    setProductTimer(3);
+    setRevealTimer(10);
     setRevealCount(0);
     setRowMarks([]);
     setScanSubStep('reveal');
@@ -783,11 +792,14 @@ export default function AuctionDetail() {
           LIVE ANIMATED AUDIT MODAL
       ══════════════════════════════════════════════════════════════════ */}
       {showAuditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-950/90 backdrop-blur-xl">
-          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-slate-200 relative overflow-hidden flex flex-col" style={{ maxHeight: '92vh' }}>
+        <div onClick={closeModal} className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-950/90 backdrop-blur-xl">
+          <div onClick={event => event.stopPropagation()} className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-slate-200 relative overflow-hidden flex flex-col" style={{ maxHeight: '92vh' }}>
 
             {/* Close button */}
             <button onClick={closeModal} className="absolute top-4 right-4 z-10 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center font-bold transition-all">✕</button>
+            <div className="absolute top-4 left-4 z-10 rounded-full bg-slate-900/80 text-white px-3 py-1 text-[11px] font-black">
+              Result in {revealTimer}s
+            </div>
 
             {/* ── PHASE 1: PRODUCT COUNTDOWN ────────────────────────────────── */}
             {auditPhase === 'product_countdown' && (
@@ -818,7 +830,7 @@ export default function AuctionDetail() {
 
                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 rounded-full transition-all duration-1000"
-                    style={{ width: `${((5 - productTimer) / 5) * 100}%` }} />
+                    style={{ width: `${((3 - productTimer) / 3) * 100}%` }} />
                 </div>
               </div>
             )}
