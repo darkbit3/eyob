@@ -91,6 +91,9 @@ export default function AuctionDetail() {
           auctionId: b.auction_id ?? id,
           bidderId: b.bidder_id ?? b.bidderId ?? '',
           maskedBidderId: b.masked_bidder_id ?? b.maskedBidderId ?? '',
+          bidderName: b.bidder_name ?? b.bidderName ?? '',
+          bidderPhone: b.bidder_phone ?? b.bidderPhone ?? '',
+          bidderPhoto: b.bidder_photo ?? b.bidderPhoto ?? '',
           amount: Number(b.amount ?? 0),
           timestamp: b.created_at ?? b.timestamp ?? new Date().toISOString(),
           isDuplicate: Boolean(b.is_duplicate ?? false),
@@ -115,8 +118,8 @@ export default function AuctionDetail() {
   // ── MODAL STATE ──────────────────────────────────────────────────────────
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [auditPhase, setAuditPhase] = useState<'product_countdown' | 'player_scan' | 'winner_reveal' | null>(null);
-  const [productTimer, setProductTimer] = useState<number>(3);
-  const [revealTimer, setRevealTimer] = useState(10);
+  const [productTimer, setProductTimer] = useState<number>(5);
+  const [revealTimer, setRevealTimer] = useState(15);
 
   // ── SCAN ANIMATION STATE ─────────────────────────────────────────────────
   const [revealCount, setRevealCount] = useState(0);
@@ -182,12 +185,12 @@ export default function AuctionDetail() {
     clearAllTimers();
 
     const n = auctionBids.length;
-    // Fixed ten-second reveal schedule: scan, flag duplicates, isolate uniques, reveal winner.
+    // Ten-second scan after the five-second finalizing screen.
     for (let i = 0; i < n; i++) {
-      push(() => setRevealCount(i + 1), Math.min(i * 80, 1400));
+      push(() => setRevealCount(i + 1), Math.min(i * 120, 2000));
     }
 
-    const allRevealedAt = 1500;
+    const allRevealedAt = 2000;
 
     // 2. Mark duplicates red
     push(() => setScanSubStep('mark_red'), allRevealedAt);
@@ -199,10 +202,10 @@ export default function AuctionDetail() {
           next[idx] = isDup ? 'duplicate' : 'scanning';
           return next;
         });
-      }, allRevealedAt + Math.min(idx * 50, 1000));
+      }, allRevealedAt + Math.min(idx * 80, 1800));
     });
 
-    const redDoneAt = 3000;
+    const redDoneAt = 4500;
 
     // 3. Mark unique bids green
     push(() => setScanSubStep('mark_green'), redDoneAt);
@@ -216,16 +219,16 @@ export default function AuctionDetail() {
             next[idx] = isWin ? 'winner' : 'unique';
             return next;
           });
-        }, redDoneAt + Math.min(idx * 50, 1000));
+        }, redDoneAt + Math.min(idx * 80, 1800));
       }
     });
 
-    const greenDoneAt = 5000;
+    const greenDoneAt = 6500;
 
     // 4. Hold the completed scan, then reveal the winner at the ten-second mark.
     push(() => {
       setScanSubStep('zoom_winner');
-      push(() => setAuditPhase('winner_reveal'), 2000);
+      push(() => setAuditPhase('winner_reveal'), 3500);
     }, greenDoneAt);
   }
 
@@ -235,8 +238,8 @@ export default function AuctionDetail() {
     setIsSimulatedClosed(true);
     setShowAuditModal(true);
     setAuditPhase('product_countdown');
-    setProductTimer(3);
-    setRevealTimer(10);
+    setProductTimer(5);
+    setRevealTimer(15);
     setRevealCount(0);
     setRowMarks([]);
     setScanSubStep('reveal');
@@ -824,13 +827,13 @@ export default function AuctionDetail() {
 
                 <div>
                   <h3 className="text-xl font-black text-slate-900">{auction.title}</h3>
-                  <p className="text-xs font-bold text-blue-600 mt-1">{formatCurrency(auction.retailValue)}</p>
+                  <p className="text-xs font-bold text-blue-600 mt-1">{auctionBids.length} Total Bids</p>
                   <p className="text-xs text-slate-500 mt-3">Scanning <strong>{auctionBids.length} bids</strong> from <strong>{new Set(auctionBids.map(b => b.bidderId)).size} players</strong> in {productTimer}s…</p>
                 </div>
 
                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 rounded-full transition-all duration-1000"
-                    style={{ width: `${((3 - productTimer) / 3) * 100}%` }} />
+                    style={{ width: `${((5 - productTimer) / 5) * 100}%` }} />
                 </div>
               </div>
             )}
@@ -867,9 +870,9 @@ export default function AuctionDetail() {
                 <div className="overflow-y-auto flex-1 px-4 py-3 space-y-2">
                   {auctionBids.map((b, idx) => {
                     const bidder = users.find(u => u.id === b.bidderId) || {
-                      name: `Bidder (${b.maskedBidderId})`,
-                      phone: b.maskedBidderId,
-                      photo: undefined,
+                      name: b.bidderName || `Bidder (${b.maskedBidderId})`,
+                      phone: b.bidderPhone || b.maskedBidderId,
+                      photo: b.bidderPhoto || undefined,
                     };
                     const mark = rowMarks[idx] ?? 'idle';
                     const visible = idx < revealCount;
@@ -925,6 +928,7 @@ export default function AuctionDetail() {
                               'text-slate-900'
                             }`}>{bidder.name}</p>
                             <p className="text-[10px] text-slate-500 font-mono">{bidder.phone}</p>
+                            <p className="text-[9px] text-slate-400 font-mono">ID: {b.maskedBidderId} · {formatDate(b.timestamp)}</p>
                           </div>
                         </div>
 
