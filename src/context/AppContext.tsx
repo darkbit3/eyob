@@ -42,7 +42,7 @@ interface AppContextType {
 
   // Actions
   markNotificationRead: (id: string) => void;
-  placeBid: (auctionId: string, amount: number) => boolean;
+  placeBid: (auctionId: string, amount: number) => Promise<boolean>;
   editBid: (bidId: string, newAmount: number) => boolean;
   refreshCurrentUser: () => Promise<void>;
   logout: () => void;
@@ -107,6 +107,7 @@ function apiToAuction(a: any): Auction {
     image: a.image_url ?? a.image ?? a.imageUrl ?? '',
     retailValue: Number(a.retail_value ?? a.retailValue ?? 0),
     bidPerCost: Number(a.bid_per_cost ?? a.bidPerCost ?? 100),
+    maxBidsPerUser: Number(a.max_bids_per_user ?? a.maxBidsPerUser ?? 0),
     category: a.category,
     status,
     startTime,
@@ -504,7 +505,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     notificationsApi.markRead(id).catch(() => {});
   }
 
-  function placeBid(auctionId: string, amount: number): boolean {
+  async function placeBid(auctionId: string, amount: number): Promise<boolean> {
     if (!currentUser) return false;
 
     const targetAuction = auctions.find(a => a.id === auctionId);
@@ -512,8 +513,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (Number.isNaN(safeAmount) || safeAmount <= 0) return false;
     if (currentUser.walletBalance < safeAmount) return false;
 
-    void bidsApi.place(auctionId, safeAmount)
-      .then((res) => {
+    try {
+      const res = await bidsApi.place(auctionId, safeAmount);
         const bidData = res.data || {};
         const deductedAmount = Number(bidData.amount ?? safeAmount);
 
@@ -542,12 +543,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         void refreshMyBids();
         refreshCurrentUser().catch(() => {});
-      })
-      .catch(() => {
-        // Keep the UI in sync with backend validation errors by not forcing a stale local state change.
-      });
-
-    return true;
+      return true;
+    } catch (err) {
+      throw err;
+    }
   }
 
   function editBid(bidId: string, newAmount: number): boolean {
@@ -747,7 +746,7 @@ const fallbackAppContext: AppContextType = {
   settings: initialSettings,
   setSettings: () => {},
   markNotificationRead: () => {},
-  placeBid: () => false,
+  placeBid: async () => false,
   editBid: () => false,
   unlockedAuctionIds: [],
   isAuctionUnlocked: () => false,

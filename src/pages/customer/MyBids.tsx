@@ -100,10 +100,14 @@ export default function MyBids() {
     else flash('error', 'Failed to update bid.');
   }
 
-  function handlePlaceAnotherBid(auctionId: string) {
-    const success = placeBid(auctionId, addBidAmount);
+  async function handlePlaceAnotherBid(auctionId: string) {
+    try {
+      const success = await placeBid(auctionId, addBidAmount);
     if (success) { flash('success', `New bid of ${addBidAmount.toFixed(1)} ETB placed!`); setAddBidAuctionId(null); }
     else flash('error', 'Failed to place bid.');
+    } catch (err: any) {
+      flash('error', err?.message || 'Failed to place bid.');
+    }
   }
 
   // Render bid card

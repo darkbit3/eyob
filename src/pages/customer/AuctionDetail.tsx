@@ -45,6 +45,7 @@ export default function AuctionDetail() {
 
   const isUnlocked = auction ? isAuctionUnlocked(auction.id) : false;
   const bidCost = auction?.bidPerCost || 100;
+  const auctionBidLimit = auction?.maxBidsPerUser ?? 0;
   const userBalance = currentUser?.walletBalance ?? 0;
   const canAfford = userBalance >= bidCost;
 
@@ -247,7 +248,7 @@ export default function AuctionDetail() {
     </div>
   );
 
-  function handleBid(e: React.FormEvent) {
+  async function handleBid(e: React.FormEvent) {
     e.preventDefault();
     if (auction!.status !== 'active') {
       setBidResult({ ok: false, msg: 'This auction is not currently active.' });
@@ -264,8 +265,9 @@ export default function AuctionDetail() {
     setBidSubmitText('Placing your bid...');
     setBidResult(null);
 
-    window.setTimeout(() => {
-      const ok = placeBid(auction!.id, amount);
+    window.setTimeout(async () => {
+      try {
+        const ok = await placeBid(auction!.id, amount);
       if (ok) {
         setBidSubmitState('success');
         setBidSubmitText('You placed bet');
@@ -291,6 +293,11 @@ export default function AuctionDetail() {
         setBidSubmitState('error');
         setBidSubmitText('Bid failed');
         setBidResult({ ok: false, msg: 'Failed to place bid. Please try again.' });
+      }
+      } catch (err: any) {
+        setBidSubmitState('error');
+        setBidSubmitText('Bid failed');
+        setBidResult({ ok: false, msg: err?.message || 'Failed to place bid. Please try again.' });
       }
 
       window.setTimeout(() => {
@@ -450,6 +457,10 @@ export default function AuctionDetail() {
                   <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                     🔓 Unlocked
                   </span>
+                </div>
+                <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <span className="font-semibold text-slate-500">Bids allowed per user on this auction</span>
+                  <span className="font-black text-amber-600">{auctionBidLimit > 0 ? auctionBidLimit : 'Unlimited'}</span>
                 </div>
                 <form onSubmit={handleBid} className="flex gap-2">
                   <input type="number" value={bidAmount} onChange={e => setBidAmount(validateBidAmount(e.target.value))}

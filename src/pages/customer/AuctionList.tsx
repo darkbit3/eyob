@@ -97,7 +97,7 @@ export default function AuctionList() {
     : undefined;
 
   // ── Bid handler ───────────────────────────────────────────────────────────
-  function handlePopupBid(e: React.FormEvent) {
+  async function handlePopupBid(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedAuction) return;
     if (selectedAuction.status !== 'active') {
@@ -113,8 +113,9 @@ export default function AuctionList() {
     setBidSubmitState('loading');
     setBidSubmitText('Placing your bid...');
     setBidResult(null);
-    window.setTimeout(() => {
-      const ok = placeBid(selectedAuction.id, amount);
+    window.setTimeout(async () => {
+      try {
+        const ok = await placeBid(selectedAuction.id, amount);
       if (ok) {
         setBidSubmitState('success');
         setBidSubmitText('Bid placed!');
@@ -131,6 +132,11 @@ export default function AuctionList() {
         setBidSubmitState('error');
         setBidSubmitText('Bid failed');
         setBidResult({ ok: false, msg: 'Unable to place bid. Check your wallet balance.' });
+      }
+      } catch (err: any) {
+        setBidSubmitState('error');
+        setBidSubmitText('Bid failed');
+        setBidResult({ ok: false, msg: err?.message || 'Unable to place bid.' });
       }
       window.setTimeout(() => { setBidSubmitState('idle'); setBidSubmitText(''); setBidResult(null); }, 1800);
     }, 700);
