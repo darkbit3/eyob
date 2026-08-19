@@ -8,7 +8,7 @@ import { bidsApi } from '../../utils/api';
 import { Bid } from '../../data/mockData';
 import {
   ChevronLeft, Users, TrendingDown, Phone, Lock, CreditCard,
-  CheckCircle, AlertCircle, Gavel, Sparkles, Play, RefreshCw, Trophy, XCircle, Clock, Star, Loader2
+  CheckCircle, AlertCircle, Gavel, Sparkles, Play, RefreshCw, Trophy, XCircle, Clock, Star, Loader2, Edit3, Trash2
 } from 'lucide-react';
 
 type ScanMark = 'idle' | 'scanning' | 'duplicate' | 'unique' | 'winner';
@@ -37,7 +37,7 @@ const validateBidAmount = (value: string): string => {
 
 export default function AuctionDetail() {
   const { id } = useParams<{ id: string }>();
-  const { auctions, products, users, currentUser, placeBid, setAuctions, isAuctionUnlocked, unlockAuction } = useApp();
+  const { auctions, products, users, currentUser, placeBid, refreshCurrentUser, setAuctions, isAuctionUnlocked, unlockAuction } = useApp();
   const nav = useNavigate();
 
   const auction = auctions.find(a => a.id === id);
@@ -107,6 +107,9 @@ export default function AuctionDetail() {
   const [bidResult, setBidResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [bidSubmitState, setBidSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [bidSubmitText, setBidSubmitText] = useState('');
+  const [editingBidId, setEditingBidId] = useState<string | null>(null);
+  const [editingBidAmount, setEditingBidAmount] = useState('');
+  const [bidActionLoading, setBidActionLoading] = useState<string | null>(null);
   const [isSimulatedClosed, setIsSimulatedClosed] = useState(false);
 
   // ── MODAL STATE ──────────────────────────────────────────────────────────
@@ -316,6 +319,59 @@ export default function AuctionDetail() {
     }, 700);
   }
 
+  const myAuctionBids = auctionBids.filter(bid => bid.bidderId === currentUser?.id);
+
+  async function refreshAuctionBids() {
+    if (!auction) return;
+    const res = await bidsApi.forAuction(auction.id);
+    setAuctionBids((res.data || []).map((b: any) => ({
+      id: b.id,
+      auctionId: b.auction_id ?? auction.id,
+      bidderId: b.bidder_id ?? b.bidderId ?? '',
+      maskedBidderId: b.masked_bidder_id ?? b.maskedBidderId ?? '',
+      amount: Number(b.amount ?? 0),
+      timestamp: b.created_at ?? b.timestamp ?? new Date().toISOString(),
+      isDuplicate: Boolean(b.is_duplicate ?? false),
+      isLowestUnique: Boolean(b.is_lowest_unique ?? false),
+    })));
+  }
+
+  async function handleEditBid(bidId: string) {
+    if (!auction) return;
+    const amount = Number(editingBidAmount);
+    if (!Number.isFinite(amount) || amount < auction.minBid || amount > auction.maxBid) {
+      setBidResult({ ok: false, msg: `Bid must be between ${auction.minBid} and ${auction.maxBid} ETB.` });
+      return;
+    }
+    setBidActionLoading(bidId);
+    try {
+      await bidsApi.update(bidId, amount);
+      await refreshAuctionBids();
+      await refreshCurrentUser();
+      setEditingBidId(null);
+      setBidResult({ ok: true, msg: 'Bid updated successfully.' });
+    } catch (err: any) {
+      setBidResult({ ok: false, msg: err?.message || 'Failed to update bid.' });
+    } finally {
+      setBidActionLoading(null);
+    }
+  }
+
+  async function handleCancelBid(bidId: string) {
+    if (!window.confirm('Cancel this bid and refund its amount?')) return;
+    setBidActionLoading(bidId);
+    try {
+      await bidsApi.cancel(bidId);
+      await refreshAuctionBids();
+      await refreshCurrentUser();
+      setBidResult({ ok: true, msg: 'Bid cancelled and refunded successfully.' });
+    } catch (err: any) {
+      setBidResult({ ok: false, msg: err?.message || 'Failed to cancel bid.' });
+    } finally {
+      setBidActionLoading(null);
+    }
+  }
+
   // ── RENDER ───────────────────────────────────────────────────────────────
   return (
     <>
@@ -492,6 +548,64 @@ export default function AuctionDetail() {
                     <span>{bidSubmitText || (bidResult?.msg ?? '')}</span>
                   </div>
                 )}
+
+                <div className="border-t border-slate-100 pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-slate-800">Your bids on this auction</h3>
+                    <span className="text-[11px] font-bold text-slate-400">{myAuctionBids.length} placed</span>
+                  </div>
+                  {myAuctionBids.length === 0 ? (
+                    <p className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">You have not placed a bid on this auction yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {myAuctionBids.map(bid => (
+                        <div key={bid.id} className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                          {editingBidId === bid.id ? (
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <input
+                                type="number"
+                                value={editingBidAmount}
+                                onChange={e => setEditingBidAmount(validateBidAmount(e.target.value))}
+                                min={auction.minBid}
+                                max={auction.maxBid}
+                                className="input-field flex-1 min-w-0 text-sm font-bold"
+                              />
+                              <button type="button" onClick={() => handleEditBid(bid.id)} disabled={bidActionLoading === bid.id} className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold disabled:opacity-50">
+                                {bidActionLoading === bid.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
+                              </button>
+                              <button type="button" onClick={() => setEditingBidId(null)} className="px-3 py-2 rounded-lg bg-slate-200 text-slate-700 text-xs font-bold">Cancel</button>
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <p className="text-base font-black text-slate-900">{formatCurrency(bid.amount)}</p>
+                                <p className="text-[10px] text-slate-400">{formatDate(bid.timestamp)}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingBidId(bid.id); setEditingBidAmount(String(bid.amount)); }}
+                                  disabled={bidActionLoading === bid.id}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600 text-[11px] font-bold disabled:opacity-50"
+                                >
+                                  <Edit3 className="w-3 h-3" /> Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelBid(bid.id)}
+                                  disabled={bidActionLoading === bid.id}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 text-[11px] font-bold disabled:opacity-50"
+                                >
+                                  {bidActionLoading === bid.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />} Cancel
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )
           )}

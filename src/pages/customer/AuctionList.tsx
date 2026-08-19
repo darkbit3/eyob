@@ -347,7 +347,7 @@ export default function AuctionList() {
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {filtered.map(auction => (
-            <AuctionCard key={auction.id} auction={auction} onClick={() => setSelectedAuction(auction)} />
+            <AuctionCard key={auction.id} auction={auction} onClick={() => nav(`${ROUTES.AUCTION_DETAIL}/${auction.id}`)} />
           ))}
         </div>
       ) : (
@@ -359,7 +359,7 @@ export default function AuctionList() {
             return (
               <button
                 key={auction.id}
-                onClick={() => setSelectedAuction(auction)}
+                onClick={() => nav(`${ROUTES.AUCTION_DETAIL}/${auction.id}`)}
                 className="w-full group bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-4 hover:border-indigo-300 hover:shadow-md transition-all text-left"
               >
                 <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 shrink-0">

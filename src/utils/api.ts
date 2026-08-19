@@ -152,6 +152,12 @@ export const bidsApi = {
       body: JSON.stringify({ auction_id: auctionId, amount }),
     }),
   myBids: () => request<{ success: boolean; data: any[] }>('/bids/my'),
+  update: (bidId: string, amount: number) =>
+    request<{ success: boolean; message: string; data: any }>(`/bids/${bidId}`, {
+      method: 'PATCH', body: JSON.stringify({ amount }),
+    }),
+  cancel: (bidId: string) =>
+    request<{ success: boolean; message: string }>(`/bids/${bidId}`, { method: 'DELETE' }),
   forAuction: (auctionId: string) =>
     request<{ success: boolean; data: any[] }>(`/bids/auction/${auctionId}`),
 };
