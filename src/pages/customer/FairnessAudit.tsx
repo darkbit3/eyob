@@ -6,7 +6,7 @@ import { Bid } from '../../data/mockData';
 import {
   Shield, Trophy, CheckCircle, XCircle, Search,
   ChevronLeft, ChevronRight, BarChart2, Hash, Sparkles, Info,
-  ArrowUpDown, AlertCircle, Eye, Clock, Package, Users, TrendingDown,
+  ArrowUpDown, AlertCircle, Eye, Clock, Package, Users, TrendingDown, SlidersHorizontal,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -76,6 +76,11 @@ export default function FairnessAudit() {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [activeTab, setActiveTab] = useState<'algorithm' | 'frequency' | 'log'>('algorithm');
   const [showHashInfo, setShowHashInfo] = useState(false);
+  const [bidStatusFilter, setBidStatusFilter] = useState<'all' | 'winner' | 'unique' | 'duplicate'>('all');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   // ── Live bids from API ──────────────────────────────────────────────────
   const [rawBids, setRawBids] = useState<Bid[]>([]);
@@ -94,6 +99,9 @@ export default function FairnessAudit() {
           auctionId: b.auction_id ?? selectedId,
           bidderId: b.bidder_id ?? b.bidderId ?? '',
           maskedBidderId: b.masked_bidder_id ?? b.maskedBidderId ?? `BDR-${String(b.bidder_id ?? '').slice(-4)}`,
+          bidderName: b.bidder_name ?? b.bidderName ?? '',
+          bidderPhone: b.bidder_phone ?? b.bidderPhone ?? '',
+          bidderPhoto: b.bidder_photo ?? b.bidderPhoto ?? '',
           amount: Number(b.amount ?? 0),
           timestamp: b.created_at ?? b.timestamp ?? new Date().toISOString(),
           isDuplicate: Boolean(b.is_duplicate ?? false),
@@ -144,8 +152,27 @@ export default function FairnessAudit() {
     let rows = taggedBids.filter(
       b =>
         b.maskedBidderId.toLowerCase().includes(search.toLowerCase()) ||
+        (b.bidderName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (b.bidderPhone ?? '').toLowerCase().includes(search.toLowerCase()) ||
         String(b.amount).includes(search)
     );
+    const minimum = minAmount === '' ? null : Number(minAmount);
+    const maximum = maxAmount === '' ? null : Number(maxAmount);
+    const from = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
+    const to = toDate ? new Date(`${toDate}T23:59:59.999`).getTime() : null;
+
+    rows = rows.filter(b => {
+      const timestamp = new Date(b.timestamp).getTime();
+      const matchesStatus = bidStatusFilter === 'all'
+        || (bidStatusFilter === 'winner' && b.isWinner)
+        || (bidStatusFilter === 'unique' && b.isUnique && !b.isWinner)
+        || (bidStatusFilter === 'duplicate' && !b.isUnique);
+      const matchesMinimum = minimum === null || (Number.isFinite(minimum) && b.amount >= minimum);
+      const matchesMaximum = maximum === null || (Number.isFinite(maximum) && b.amount <= maximum);
+      const matchesFrom = from === null || timestamp >= from;
+      const matchesTo = to === null || timestamp <= to;
+      return matchesStatus && matchesMinimum && matchesMaximum && matchesFrom && matchesTo;
+    });
     rows = [...rows].sort((a, b) => {
       let diff = 0;
       if (sortKey === 'amount') diff = a.amount - b.amount;
@@ -154,7 +181,16 @@ export default function FairnessAudit() {
       return sortDir === 'asc' ? diff : -diff;
     });
     return rows;
-  }, [taggedBids, search, sortKey, sortDir]);
+  }, [taggedBids, search, bidStatusFilter, minAmount, maxAmount, fromDate, toDate, sortKey, sortDir]);
+
+  function clearBidFilters() {
+    setSearch('');
+    setBidStatusFilter('all');
+    setMinAmount('');
+    setMaxAmount('');
+    setFromDate('');
+    setToDate('');
+  }
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
@@ -608,7 +644,7 @@ export default function FairnessAudit() {
                   <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search bidder ID or amount…"
+                    placeholder="Search user, phone, bidder ID, or amount…"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     className="pl-8 pr-3 py-2 text-xs font-medium border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 w-56"
@@ -616,12 +652,75 @@ export default function FairnessAudit() {
                 </div>
               </div>
 
+              <div className="border-t border-slate-100 pt-4 mt-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  Status
+                  <select
+                    value={bidStatusFilter}
+                    onChange={e => setBidStatusFilter(e.target.value as typeof bidStatusFilter)}
+                    className="mt-1 w-full px-2.5 py-2 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="all">All bids</option>
+                    <option value="winner">Winner</option>
+                    <option value="unique">Unique</option>
+                    <option value="duplicate">Duplicate</option>
+                  </select>
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  Min amount
+                  <input
+                    type="number"
+                    min="0"
+                    value={minAmount}
+                    onChange={e => setMinAmount(e.target.value)}
+                    placeholder="Any"
+                    className="mt-1 w-full px-2.5 py-2 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  Max amount
+                  <input
+                    type="number"
+                    min="0"
+                    value={maxAmount}
+                    onChange={e => setMaxAmount(e.target.value)}
+                    placeholder="Any"
+                    className="mt-1 w-full px-2.5 py-2 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  From date
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={e => setFromDate(e.target.value)}
+                    className="mt-1 w-full px-2.5 py-2 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  To date
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={e => setToDate(e.target.value)}
+                    className="mt-1 w-full px-2.5 py-2 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={clearBidFilters}
+                  className="h-9 flex items-center justify-center gap-1.5 px-3 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" /> Clear filters
+                </button>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider">
                       <th className="py-3 px-4 text-left">#</th>
-                      <th className="py-3 px-4 text-left">Bidder ID</th>
+                      <th className="py-3 px-4 text-left">User Information</th>
                       <th className="py-3 px-4 text-left">
                         <button
                           onClick={() => toggleSort('amount')}
@@ -655,7 +754,7 @@ export default function FairnessAudit() {
                   <tbody className="divide-y divide-slate-100">
                     {filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400 text-sm">
+                        <td colSpan={7} className="py-12 text-center text-slate-400 text-sm">
                           {rawBids.length === 0 ? 'No bids for this auction.' : 'No results match your search.'}
                         </td>
                       </tr>
@@ -671,7 +770,22 @@ export default function FairnessAudit() {
                               : 'bg-rose-50/20 opacity-75'}`}
                         >
                           <td className="py-2.5 px-4 text-slate-400 font-mono">{i + 1}</td>
-                          <td className="py-2.5 px-4 font-mono text-slate-600">{b.maskedBidderId}</td>
+                          <td className="py-2.5 px-4">
+                            <div className="flex items-center gap-2 min-w-40">
+                              {b.bidderPhoto ? (
+                                <img src={b.bidderPhoto} alt="" className="w-7 h-7 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center">
+                                  <Users className="w-3.5 h-3.5" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-700 truncate">{b.bidderName || 'Registered bidder'}</p>
+                                <p className="font-mono text-[10px] text-slate-500">{b.maskedBidderId}</p>
+                                {b.bidderPhone && <p className="text-[10px] text-slate-400">{b.bidderPhone}</p>}
+                              </div>
+                            </div>
+                          </td>
                           <td className={`py-2.5 px-4 font-black
                             ${b.isWinner ? 'text-emerald-700' : b.isUnique ? 'text-blue-700' : 'text-rose-400 line-through'}`}>
                             {b.amount}

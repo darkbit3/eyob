@@ -59,6 +59,9 @@ export interface Bid {
   auctionId: string;
   bidderId: string;
   maskedBidderId: string;
+  bidderName?: string;
+  bidderPhone?: string;
+  bidderPhoto?: string;
   amount: number;
   timestamp: string;
   isDuplicate?: boolean;
