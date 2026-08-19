@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { ROUTES } from '../utils/routes';
-import { Bell, Check, Sparkles, Wallet, Gavel, ShieldAlert } from 'lucide-react';
+import { Bell, Check, Sparkles, Wallet, Gavel, ShieldAlert, Trophy } from 'lucide-react';
 
 export default function NotificationDropdown() {
   const { notifications, markNotificationRead } = useApp();
