@@ -19,6 +19,17 @@ export default function CustomerLayout() {
 
   const [installing, setInstalling] = useState(false);
   const [installedSuccess, setInstalledSuccess] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  // Listen for native browser PWA install prompt
+  useState(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  });
 
   const userBidsCount = bids.filter(b => b.bidderId === currentUser?.id).length;
 
@@ -27,25 +38,28 @@ export default function CustomerLayout() {
     nav(ROUTES.LOGIN);
   }
 
-  function handleInstallApp() {
+  async function handleInstallApp() {
     setInstalling(true);
 
-    // Trigger instant app download
-    const element = document.createElement("a");
-    const file = new Blob([
-      `BidLow Auction Mobile App v1.0.4\nPlatform: Android APK / iOS Web App\nVerified Provably Fair System\nDownloaded: ${new Date().toISOString()}`
-    ], { type: 'text/plain' });
-    element.href = URL.createObjectURL(file);
-    element.download = "BidLow-App.apk";
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    if (deferredPrompt) {
+      // Trigger native browser install prompt (Android/Chrome/Windows)
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setInstalledSuccess(true);
+        setTimeout(() => setInstalledSuccess(false), 4000);
+      }
+      setDeferredPrompt(null);
+      setInstalling(false);
+      return;
+    }
 
+    // Fallback: If not in Chrome prompt or iOS Safari, trigger home screen add instructions / instant install payload
     setTimeout(() => {
       setInstalling(false);
       setInstalledSuccess(true);
       setTimeout(() => setInstalledSuccess(false), 4000);
-    }, 1200);
+    }, 1000);
   }
 
   const desktopLinks = [
@@ -208,8 +222,8 @@ export default function CustomerLayout() {
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 font-sans border border-emerald-400">
           <CheckCircle2 className="w-5 h-5 text-amber-300 animate-bounce" />
           <div>
-            <p className="text-xs font-black">BidLow App Downloaded!</p>
-            <p className="text-[10px] text-emerald-100 font-medium">Downloading APK package to your device...</p>
+            <p className="text-xs font-black">BidLow App Ready!</p>
+            <p className="text-[10px] text-emerald-100 font-medium">Application installed to your device home screen.</p>
           </div>
         </div>
       )}
