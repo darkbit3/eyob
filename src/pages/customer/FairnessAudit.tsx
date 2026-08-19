@@ -29,12 +29,44 @@ function buildHash(auctionId: string, bids: { amount: number; bidderId: string }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function FairnessAudit() {
-  const { auctions, products } = useApp();
+  const { products } = useApp();
 
-  const closedAuctions = useMemo(
-    () => auctions.filter(a => a.status === 'closed'),
-    [auctions]
-  );
+  // ── Live closed auctions from API ─────────────────────────────────────────
+  const [closedAuctions, setClosedAuctions] = useState<any[]>([]);
+  const [auctionsLoading, setAuctionsLoading] = useState(false);
+
+  useEffect(() => {
+    setAuctionsLoading(true);
+    auctionsApi.list({ status: 'closed' })
+      .then(res => {
+        const now = Date.now();
+        // Include both DB-closed and time-expired active auctions
+        const allClosed = (res.data || []).filter((a: any) => {
+          const endTime = a.end_time ?? a.endTime ?? '';
+          const dbStatus = a.status;
+          return dbStatus === 'closed' || (endTime && new Date(endTime).getTime() < now);
+        }).map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          description: a.description ?? '',
+          image: a.image_url ?? a.image ?? '',
+          retailValue: Number(a.retail_value ?? a.retailValue ?? 0),
+          bidPerCost: Number(a.bid_per_cost ?? a.bidPerCost ?? 100),
+          category: a.category,
+          status: 'closed',
+          startTime: a.start_time ?? a.startTime ?? '',
+          endTime: a.end_time ?? a.endTime ?? '',
+          minBid: Number(a.min_bid ?? a.minBid ?? 1),
+          maxBid: Number(a.max_bid ?? a.maxBid ?? 500),
+          totalParticipants: Number(a.total_participants ?? a.totalParticipants ?? 0),
+          totalBids: Number(a.total_bids ?? a.totalBids ?? 0),
+          productId: a.product_id ?? a.productId ?? undefined,
+        }));
+        setClosedAuctions(allClosed);
+      })
+      .catch(() => {})
+      .finally(() => setAuctionsLoading(false));
+  }, []);
 
   const [selectedId, setSelectedId] = useState<string>(closedAuctions[0]?.id ?? '');
   const [search, setSearch] = useState('');
