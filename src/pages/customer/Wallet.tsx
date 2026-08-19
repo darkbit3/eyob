@@ -150,6 +150,8 @@ export default function Wallet() {
     setReference(method === 'Chapa' ? '' : `TXN-${Date.now().toString().slice(-6)}`);
     setNotes('');
     setReceipt('');
+    setReceiptFile(null);
+    setReceiptFilePreview('');
     setMsg('');
     setShowModal(true);
   }
@@ -225,6 +227,7 @@ export default function Wallet() {
       } else {
         // ── Manual bank deposit ────────────────────────────────────────
         if (!reference && !receipt) {
+            if (!reference && !receipt && !receiptFile) {
           setMsg('Please provide a reference ID / SMS text message or receipt proof image.');
           setMsgType('error');
           setLoading(false);
@@ -830,6 +833,7 @@ export default function Wallet() {
                         value={receipt}
                         onChange={(e) => {
                           setReceipt(e.target.value);
+                          setReceiptFile(null);
                           setReceiptFilePreview(e.target.value);
                         }}
                         type="text"
