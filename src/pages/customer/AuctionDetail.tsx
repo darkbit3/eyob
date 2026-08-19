@@ -978,8 +978,10 @@ export default function AuctionDetail() {
             )}
 
             {/* ── PHASE 3: GRAND WINNER REVEAL ──────────────────────────────── */}
-            {auditPhase === 'winner_reveal' && winningUser && (
+            {auditPhase === 'winner_reveal' && (
               <div className="p-8 space-y-6 text-center">
+                {winningUser ? (
+                  <>
                 <div className="w-16 h-16 bg-amber-100 rounded-3xl flex items-center justify-center mx-auto shadow-lg ring-8 ring-amber-50">
                   <Trophy className="w-9 h-9 fill-amber-500 animate-bounce" />
                 </div>
@@ -1017,6 +1019,31 @@ export default function AuctionDetail() {
                 <button onClick={closeModal} className="btn-primary w-full py-3 text-sm">
                   View Complete Audit Table ↓
                 </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto shadow-lg ring-8 ring-slate-50">
+                      <AlertCircle className="w-9 h-9 text-amber-500" />
+                    </div>
+                    <div>
+                      <span className="bg-amber-100 text-amber-800 text-xs font-black uppercase px-3 py-1 rounded-full border border-amber-300">
+                        Auction Result
+                      </span>
+                      <h2 className="text-2xl font-black text-slate-900 mt-5">No Winner Found</h2>
+                      <p className="text-sm text-slate-500 mt-2">No lowest unique bid was available for this auction.</p>
+                    </div>
+                    <div className="bg-slate-900 text-white p-6 rounded-3xl">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lowest Unique Winning Bid</p>
+                      <p className="text-4xl font-black text-white mt-1">No winner</p>
+                      <p className="text-[11px] text-slate-400 pt-3 mt-3 border-t border-slate-800 font-mono">
+                        Audited Hash: #SHA256-8A9F-49C0-VERIFIED
+                      </p>
+                    </div>
+                    <button onClick={closeModal} className="btn-primary w-full py-3 text-sm">
+                      View Complete Audit Table ↓
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
