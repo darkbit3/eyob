@@ -226,8 +226,7 @@ export default function Wallet() {
         }
       } else {
         // ── Manual bank deposit ────────────────────────────────────────
-        if (!reference && !receipt) {
-            if (!reference && !receipt && !receiptFile) {
+        if (!reference && !receipt && !receiptFile) {
           setMsg('Please provide a reference ID / SMS text message or receipt proof image.');
           setMsgType('error');
           setLoading(false);
