@@ -106,7 +106,7 @@ export default function FairnessAudit() {
   }, [selectedId]);
 
   // ── Core bid analysis ────────────────────────────────────────────────────
-  const auction = useMemo(() => auctions.find(a => a.id === selectedId), [auctions, selectedId]);
+  const auction = useMemo(() => closedAuctions.find(a => a.id === selectedId), [closedAuctions, selectedId]);
   const linkedProduct = useMemo(() => auction?.productId ? products.find(p => p.id === auction.productId) : undefined, [auction, products]);
 
   const freqMap = useMemo(() => {
@@ -281,7 +281,6 @@ export default function FairnessAudit() {
               {closedAuctions.map(a => (
                 <option key={a.id} value={a.id}>
                   {a.title} — {formatCurrency(a.retailValue)} retail • {a.totalBids} bids • Ended {formatDate(a.endTime)}
-                </option>
                 </option>
               ))}
             </select>
