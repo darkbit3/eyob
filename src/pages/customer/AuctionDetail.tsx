@@ -382,10 +382,12 @@ export default function AuctionDetail() {
         <button onClick={() => nav(-1)} className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back to Auctions
         </button>
-        <button onClick={startWinnerFindingAnimation} className="btn-accent inline-flex items-center gap-2 shadow-lg shadow-amber-500/20 text-xs py-2.5 px-4">
-          <Play className="w-4 h-4 fill-white" />
-          ⚡ Start 5s Countdown & Animated Winner Reveal
-        </button>
+        {isClosed && (
+          <button onClick={startWinnerFindingAnimation} className="btn-accent inline-flex items-center gap-2 shadow-lg shadow-amber-500/20 text-xs py-2.5 px-4">
+            <Play className="w-4 h-4 fill-white" />
+            Show Result
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -695,7 +697,7 @@ export default function AuctionDetail() {
               <p className="text-xs text-slate-500 font-medium">Total Bids: <strong>{auctionBids.length}</strong></p>
             </div>
             <button onClick={startWinnerFindingAnimation} className="btn-accent inline-flex items-center gap-2 shadow-lg">
-              <Play className="w-4 h-4 fill-white" /> Replay Winner Animation
+              <Play className="w-4 h-4 fill-white" /> Show Result
             </button>
           </div>
 
