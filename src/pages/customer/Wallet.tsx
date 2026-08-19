@@ -424,17 +424,17 @@ export default function Wallet() {
             >
               <span className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-purple-600" />
-                Transfer to Any Official Account (Help &amp; Info)
+                Official Accounts
               </span>
               <span className="text-purple-700 font-extrabold bg-purple-200/60 px-3 py-1 rounded-full text-[10px] uppercase">
-                {showBankHelpInfo ? 'Hide Details ▲' : 'Show Help Info ▼'}
+                {showBankHelpInfo ? 'Hide Accounts ▲' : 'Show Accounts ▼'}
               </span>
             </button>
 
             {showBankHelpInfo && (
               <div className="bg-slate-900 text-slate-100 rounded-2xl p-5 border border-slate-800 space-y-4 text-xs animate-in fade-in">
                 <p className="font-extrabold text-amber-400 text-sm flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4" /> Transfer to Any Official Account:
+                  <Building2 className="w-4 h-4" /> Official Deposit Accounts
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {bankAccounts.map(b => (
