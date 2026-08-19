@@ -41,12 +41,21 @@ self.addEventListener('fetch', (event) => {
       .then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
+          void caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
           });
         }
         return networkResponse;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return caches.match('/index.html').then((fallbackResponse) => (
+          fallbackResponse || new Response('Offline', {
+            status: 503,
+            statusText: 'Offline',
+            headers: { 'Content-Type': 'text/plain' },
+          })
+        ));
+      }))
   );
 });
