@@ -6,7 +6,7 @@ import {
 import {
   getToken, removeToken,
   usersApi, auctionsApi, productsApi, bidsApi,
-  walletApi, notificationsApi, settingsApi,
+  walletApi, notificationsApi,
 } from '../utils/api';
 
 interface AppContextType {
@@ -257,24 +257,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Load my transactions
     walletApi.myTransactions()
       .then(res => setTransactions(res.data))
-      .catch(() => {});
-
-    // Load system settings from backend
-    settingsApi.get()
-      .then(res => {
-        if (res && res.data) {
-          setSettings(prev => ({ ...prev, ...{
-            platformName: res.data.platform_name ?? res.data.platformName ?? prev.platformName,
-            supportEmail: res.data.support_email ?? res.data.supportEmail ?? prev.supportEmail,
-            currency: res.data.currency ?? prev.currency,
-            minBidPrice: Number(res.data.min_bid_price ?? res.data.minBidPrice ?? prev.minBidPrice),
-            maxBidPrice: Number(res.data.max_bid_price ?? res.data.maxBidPrice ?? prev.maxBidPrice),
-            defaultBidStep: Number(res.data.default_bid_step ?? res.data.defaultBidStep ?? prev.defaultBidStep),
-            autoWinnerVerification: res.data.auto_winner_verification ?? res.data.autoWinnerVerification ?? prev.autoWinnerVerification,
-            maintenanceMode: res.data.maintenance_mode ?? res.data.maintenanceMode ?? prev.maintenanceMode,
-          } }));
-        }
-      })
       .catch(() => {});
 
     // Load notifications with sound check

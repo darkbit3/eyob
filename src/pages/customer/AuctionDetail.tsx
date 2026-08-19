@@ -250,6 +250,7 @@ export default function AuctionDetail() {
 
   async function handleBid(e: React.FormEvent) {
     e.preventDefault();
+    if (bidSubmitState === 'loading') return;
     if (auction!.status !== 'active') {
       setBidResult({ ok: false, msg: 'This auction is not currently active.' });
       return;

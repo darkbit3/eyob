@@ -99,6 +99,7 @@ export default function AuctionList() {
   // ── Bid handler ───────────────────────────────────────────────────────────
   async function handlePopupBid(e: React.FormEvent) {
     e.preventDefault();
+    if (bidSubmitState === 'loading') return;
     if (!selectedAuction) return;
     if (selectedAuction.status !== 'active') {
       setBidResult({ ok: false, msg: 'This auction is not currently active.' });
