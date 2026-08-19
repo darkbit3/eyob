@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import {
-  User, Auction, Bid, Transaction, Notification, Product, PaymentQueueItem, Announcement, AuditLog, SystemSettings,
+  User, Auction, AuctionStatus, Bid, Transaction, Notification, Product, PaymentQueueItem, Announcement, AuditLog, SystemSettings,
   initialSettings,
 } from '../data/mockData';
 import {
@@ -90,7 +90,7 @@ function apiToAuction(a: any): Auction {
   const dbStatus  = a.status as string;
 
   // Correct stale status based on actual times
-  let status = dbStatus;
+  let status: AuctionStatus = dbStatus as AuctionStatus;
   const now = Date.now();
   if (endTime && new Date(endTime).getTime() < now && dbStatus === 'active') {
     status = 'closed';

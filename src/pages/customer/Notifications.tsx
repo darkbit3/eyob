@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { formatDate, formatCurrency } from '../../utils/countdown';
 import {
   Bell, Check, Trophy, Gavel, Wallet, ShieldAlert,
-  Sparkles, X, Package, ExternalLink
+  Sparkles, X, Package
 } from 'lucide-react';
 
 // ── Winner Detail Modal ───────────────────────────────────────────────────────
@@ -158,7 +158,6 @@ export default function Notifications() {
           <div className="divide-y divide-slate-100">
             {notifications.map(n => {
               const isWinner = n.type === 'winner_announced';
-              const meta = (n as any).metadata ?? {};
 
               return (
                 <div
