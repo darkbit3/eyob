@@ -504,6 +504,9 @@ export default function AuctionList() {
                     <div className="flex items-center gap-2">
                       <Gavel className="w-4 h-4 text-indigo-600" />
                       <span className="font-black text-slate-900 text-sm">Place Your Bid</span>
+                      <span className="text-xs font-bold text-blue-600 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-full">
+                        Fee: {selectedAuction.bidPerCost ?? 100} ETB
+                      </span>
                     </div>
                     {myLatestBid && (
                       <span className="text-xs text-indigo-600 font-bold bg-indigo-100 px-2 py-0.5 rounded-full">

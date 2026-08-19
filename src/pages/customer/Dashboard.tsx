@@ -1,12 +1,14 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { ROUTES } from '../../utils/routes';
 import CountdownTimer from '../../components/CountdownTimer';
-import { formatCurrency, formatDate } from '../../utils/countdown';
+import { formatDate } from '../../utils/countdown';
+import { walletApi } from '../../utils/api';
 import {
   Wallet, Trophy, Bell, ArrowRight, ArrowUpRight,
-  Gavel, History, TrendingDown, Users,
+  Gavel, History, TrendingDown, Users, Loader2,
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -14,19 +16,37 @@ export default function Dashboard() {
     currentUser,
     auctions,
     bids,
-    transactions,
     notifications,
     markNotificationRead,
   } = useApp();
   const { t } = useLanguage();
 
-  const activeAuctions  = auctions.filter(a => a.status === 'active');
-  const upcomingAuctions = auctions.filter(a => a.status === 'upcoming');
-  const closedAuctions  = auctions.filter(a => a.status === 'closed').slice(0, 5);
+  // ── Live transactions from API ─────────────────────────────────────────
+  const [myTx, setMyTx] = useState<any[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
 
-  const myBids = bids.filter(b => b.bidderId === currentUser?.id);
-  const myTx   = transactions.filter(t => t.userId === currentUser?.id).slice(0, 5);
-  const unread = notifications.filter(n => !n.read).length;
+  useEffect(() => {
+    if (!currentUser) return;
+    setTxLoading(true);
+    walletApi.myTransactions()
+      .then(res => {
+        setMyTx((res.data || []).slice(0, 5).map((tx: any) => ({
+          id:          tx.id,
+          description: tx.description ?? '',
+          amount:      Number(tx.amount ?? 0),
+          type:        tx.type ?? '',
+          timestamp:   tx.created_at ?? tx.timestamp ?? new Date().toISOString(),
+        })));
+      })
+      .catch(() => {})
+      .finally(() => setTxLoading(false));
+  }, [currentUser?.id]);
+
+  const activeAuctions   = auctions.filter(a => a.status === 'active');
+  const upcomingAuctions = auctions.filter(a => a.status === 'upcoming');
+  const closedAuctions   = auctions.filter(a => a.status === 'closed').slice(0, 5);
+  const myBids           = bids.filter(b => b.bidderId === currentUser?.id);
+  const unread           = notifications.filter(n => !n.read).length;
 
   return (
     <div className="space-y-6 font-sans pb-10">
@@ -94,14 +114,18 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="divide-y divide-slate-100 text-xs">
-            {myTx.length > 0 ? myTx.map(t => (
-              <div key={t.id} className="py-2.5 flex items-center justify-between">
+            {txLoading ? (
+              <div className="py-6 flex items-center justify-center gap-2 text-slate-400">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading transactions…
+              </div>
+            ) : myTx.length > 0 ? myTx.map(tx => (
+              <div key={tx.id} className="py-2.5 flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-slate-900">{t.description}</p>
-                  <span className="text-[10px] text-slate-400">{formatDate(t.timestamp)}</span>
+                  <p className="font-bold text-slate-900">{tx.description}</p>
+                  <span className="text-[10px] text-slate-400">{formatDate(tx.timestamp)}</span>
                 </div>
-                <span className={`font-mono font-bold text-sm ${t.amount >= 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
-                  {t.amount >= 0 ? `+${t.amount}` : t.amount} ETB
+                <span className={`font-mono font-bold text-sm ${tx.amount >= 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                  {tx.amount >= 0 ? `+${tx.amount}` : tx.amount} ETB
                 </span>
               </div>
             )) : (
@@ -141,17 +165,17 @@ export default function Dashboard() {
                   <h3 className="font-bold text-slate-900 text-sm truncate">{a.title}</h3>
                   <div className="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Retail</span>
-                      <span className="font-bold text-slate-700">{formatCurrency(a.retailValue)}</span>
+                      <span className="text-slate-400 block text-[10px]">Allowed Bid Range</span>
+                      <span className="font-bold text-emerald-600">{a.minBid} – {a.maxBid} ETB</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-slate-400 block text-[10px]">Bid Range</span>
-                      <span className="font-bold text-emerald-600">{a.minBid}–{a.maxBid} ETB</span>
+                      <span className="text-slate-400 block text-[10px]">Active Bids</span>
+                      <span className="font-bold text-slate-800">{a.totalBids} placed</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" />{a.totalParticipants}</span>
-                    <span className="flex items-center gap-1"><TrendingDown className="w-3 h-3" />{a.totalBids} bids</span>
+                    <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5 text-slate-400" /> {a.totalParticipants} Participants</span>
+                    <span className="flex items-center gap-1 font-semibold text-emerald-600"><TrendingDown className="w-3.5 h-3.5" /> Live Database</span>
                   </div>
                   <Link to={`${ROUTES.AUCTION_DETAIL}/${a.id}`}
                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl text-center transition-colors block">
