@@ -88,6 +88,10 @@ function apiToAuction(a: any): Auction {
   const endTime  = a.end_time   ?? a.endTime   ?? '';
   const startTime = a.start_time ?? a.startTime ?? '';
   const dbStatus  = a.status as string;
+  const imageUrl = a.image_url ?? a.image ?? a.imageUrl ?? '';
+  const safeImageUrl = imageUrl.includes('photo-1675785931670-9f51e7a2a6e0')
+    ? 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80'
+    : imageUrl;
 
   // Correct stale status based on actual times
   let status: AuctionStatus = dbStatus as AuctionStatus;
@@ -104,7 +108,7 @@ function apiToAuction(a: any): Auction {
     productName: a.product_name ?? a.productName ?? undefined,
     title: a.title,
     description: a.description ?? '',
-    image: a.image_url ?? a.image ?? a.imageUrl ?? '',
+    image: safeImageUrl,
     retailValue: Number(a.retail_value ?? a.retailValue ?? 0),
     bidPerCost: Number(a.bid_per_cost ?? a.bidPerCost ?? 100),
     maxBidsPerUser: Number(a.max_bids_per_user ?? a.maxBidsPerUser ?? 0),
@@ -125,13 +129,16 @@ function apiToProduct(p: any): Product {
     : p.images
       ? JSON.parse(p.images)
       : [];
+  const fallbackImage = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
+  const safeImages = images.map((image: string) => image.includes('photo-1675785931670-9f51e7a2a6e0') ? fallbackImage : image);
+  const primaryImage = p.image_url ?? (safeImages.length > 0 ? safeImages[0] : p.image ?? '');
 
   return {
     id: p.id,
     name: p.name,
     category: p.category,
-    image: p.image_url ?? (images.length > 0 ? images[0] : p.image ?? ''),
-    images,
+    image: primaryImage.includes('photo-1675785931670-9f51e7a2a6e0') ? fallbackImage : primaryImage,
+    images: safeImages,
     retailValue: Number(p.retail_value ?? p.retailValue ?? 0),
     description: p.description ?? '',
     linkedAuctionId: p.linked_auction_id ?? p.linkedAuctionId ?? undefined,
