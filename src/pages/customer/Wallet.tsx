@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/countdown';
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, CreditCard, Building2, ExternalLink, ShieldCheck, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { ChapaLogo, ManualPaymentLogo } from '../../components/PaymentMethodLogos';
-import { walletApi, settingsApi } from '../../utils/api';
+import { walletApi, settingsApi, uploadApi } from '../../utils/api';
 
 export default function Wallet() {
   const { currentUser, setPaymentQueue, refreshCurrentUser } = useApp();
@@ -50,6 +50,7 @@ export default function Wallet() {
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [receipt, setReceipt] = useState('');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
 
   // Manual deposit proof mode & image import
@@ -62,10 +63,11 @@ export default function Wallet() {
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
-        setReceipt(dataUrl);
         setReceiptFilePreview(dataUrl);
       };
       reader.readAsDataURL(file);
+      setReceiptFile(file);
+      setReceipt('');
     }
   }
 
@@ -229,7 +231,13 @@ export default function Wallet() {
           return;
         }
         const finalRef = reference || `TXN-${Date.now().toString().slice(-6)}`;
-        const finalReceipt = receipt || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400';
+        let finalReceipt = receipt;
+        if (receiptFile) {
+          setMsg('Uploading receipt securely…');
+          setMsgType('info');
+          const uploadRes = await uploadApi.receipt(receiptFile);
+          finalReceipt = uploadRes.data.url;
+        }
 
         const res = await walletApi.submitDeposit({
           amount: amt,
@@ -251,6 +259,8 @@ export default function Wallet() {
           setReference('');
           setNotes('');
           setReceipt('');
+          setReceiptFile(null);
+          setReceiptFilePreview('');
           setSelectedMethod(null);
           setShowModal(false);
         }, 1800);

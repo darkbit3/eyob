@@ -29,7 +29,7 @@ async function request<T>(
 ): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string>),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -160,6 +160,18 @@ export const bidsApi = {
     request<{ success: boolean; message: string }>(`/bids/${bidId}`, { method: 'DELETE' }),
   forAuction: (auctionId: string) =>
     request<{ success: boolean; data: any[] }>(`/bids/auction/${auctionId}`),
+};
+
+// ── Uploads ───────────────────────────────────────────────────────────────────
+export const uploadApi = {
+  receipt: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request<{ success: boolean; data: { url: string } }>('/upload/receipt', {
+      method: 'POST',
+      body: formData,
+    });
+  },
 };
 
 // ── Wallet ────────────────────────────────────────────────────────────────────
