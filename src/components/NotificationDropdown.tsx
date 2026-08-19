@@ -75,7 +75,16 @@ export default function NotificationDropdown() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 leading-relaxed mb-1">{n.message}</p>
-                      {!n.read && (
+                      {n.type === 'winner_announced' && (
+                        <Link
+                          to={ROUTES.NOTIFICATIONS}
+                          onClick={() => { markNotificationRead(n.id); setOpen(false); }}
+                          className="inline-flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full"
+                        >
+                          <Trophy className="w-3 h-3" /> View My Win & Order →
+                        </Link>
+                      )}
+                      {!n.read && n.type !== 'winner_announced' && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600">
                           <Check className="w-3 h-3" /> Mark as read
                         </span>
