@@ -5,7 +5,7 @@ import { bidsApi, auctionsApi } from '../../utils/api';
 import { Bid } from '../../data/mockData';
 import {
   Shield, Trophy, CheckCircle, XCircle, Search,
-  ChevronDown, BarChart2, Hash, Sparkles, Info,
+  ChevronLeft, ChevronRight, BarChart2, Hash, Sparkles, Info,
   ArrowUpDown, AlertCircle, Eye, Clock, Package, Users, TrendingDown,
 } from 'lucide-react';
 
@@ -107,6 +107,7 @@ export default function FairnessAudit() {
 
   // ── Core bid analysis ────────────────────────────────────────────────────
   const auction = useMemo(() => closedAuctions.find(a => a.id === selectedId), [closedAuctions, selectedId]);
+  const selectedAuctionIndex = closedAuctions.findIndex(a => a.id === selectedId);
   const linkedProduct = useMemo(() => auction?.productId ? products.find(p => p.id === auction.productId) : undefined, [auction, products]);
 
   const freqMap = useMemo(() => {
@@ -272,19 +273,68 @@ export default function FairnessAudit() {
             No closed auctions available yet. Auctions appear here once they end.
           </div>
         ) : (
-          <div className="relative">
-            <select
-              value={selectedId}
-              onChange={e => { setSelectedId(e.target.value); setSearch(''); }}
-              className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer"
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Previous closed auction"
+              title="Previous closed auction"
+              disabled={selectedAuctionIndex <= 0}
+              onClick={() => {
+                const previousAuction = closedAuctions[selectedAuctionIndex - 1];
+                if (previousAuction) { setSelectedId(previousAuction.id); setSearch(''); }
+              }}
+              className="w-10 h-10 flex-shrink-0 rounded-xl border border-slate-200 bg-white text-slate-600 flex items-center justify-center hover:bg-slate-50 hover:border-emerald-300 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
             >
-              {closedAuctions.map(a => (
-                <option key={a.id} value={a.id}>
-                  {a.title} — {formatCurrency(a.retailValue)} retail • {a.totalBids} bids • Ended {formatDate(a.endTime)}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            <div className="flex-1 min-w-0 overflow-x-auto snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+              <div className="flex gap-3 pb-1">
+                {closedAuctions.map(a => {
+                  const isSelected = a.id === selectedId;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => { setSelectedId(a.id); setSearch(''); }}
+                      className={`w-64 sm:w-72 flex-shrink-0 snap-start text-left rounded-xl border p-3 transition-all ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100'
+                          : 'border-slate-200 bg-slate-50 hover:border-emerald-300 hover:bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <span className={`text-sm font-black line-clamp-2 ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>
+                          {a.title}
+                        </span>
+                        {isSelected && <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-slate-500">
+                        <span>{formatCurrency(a.retailValue)} retail</span>
+                        <span>•</span>
+                        <span>{a.totalBids} bids</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1">Ended {formatDate(a.endTime)}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              aria-label="Next closed auction"
+              title="Next closed auction"
+              disabled={selectedAuctionIndex < 0 || selectedAuctionIndex >= closedAuctions.length - 1}
+              onClick={() => {
+                const nextAuction = closedAuctions[selectedAuctionIndex + 1];
+                if (nextAuction) { setSelectedId(nextAuction.id); setSearch(''); }
+              }}
+              className="w-10 h-10 flex-shrink-0 rounded-xl border border-slate-200 bg-white text-slate-600 flex items-center justify-center hover:bg-slate-50 hover:border-emerald-300 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         )}
       </div>
