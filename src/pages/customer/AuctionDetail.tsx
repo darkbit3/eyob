@@ -45,7 +45,7 @@ export default function AuctionDetail() {
 
   const isUnlocked = auction ? isAuctionUnlocked(auction.id) : false;
   const bidCost = auction?.bidPerCost || 100;
-  const auctionBidLimit = auction?.maxBidsPerUser ?? 0;
+  const auctionBidLimit = auction?.effectiveMaxBidsPerUser ?? auction?.maxBidsPerUser ?? 0;
   const userBalance = currentUser?.walletBalance ?? 0;
   const canAfford = userBalance >= bidCost;
 
@@ -261,6 +261,13 @@ export default function AuctionDetail() {
       return;
     }
     if (!currentUser) { nav(ROUTES.LOGIN); return; }
+    const myBidCount = auctionBids.filter(bid => bid.bidderId === currentUser.id).length;
+    if (auctionBidLimit > 0 && myBidCount >= auctionBidLimit) {
+      setBidSubmitState('error');
+      setBidSubmitText('Bid limit reached');
+      setBidResult({ ok: false, msg: `You have reached the maximum of ${auctionBidLimit} bid(s) allowed on this auction.` });
+      return;
+    }
 
     setBidSubmitState('loading');
     setBidSubmitText('Placing your bid...');

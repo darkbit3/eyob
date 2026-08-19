@@ -41,6 +41,7 @@ export interface Auction {
   retailValue: number;
   bidPerCost?: number;
   maxBidsPerUser?: number;
+  effectiveMaxBidsPerUser?: number;
   category: string;
   status: AuctionStatus;
   startTime: string;

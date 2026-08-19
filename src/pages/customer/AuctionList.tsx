@@ -111,6 +111,14 @@ export default function AuctionList() {
       return;
     }
     if (!currentUser) { nav(ROUTES.LOGIN); return; }
+    const auctionBidLimit = selectedAuction.effectiveMaxBidsPerUser ?? selectedAuction.maxBidsPerUser ?? 0;
+    const myBidCount = auctionBids.filter(bid => bid.bidderId === currentUser.id).length;
+    if (auctionBidLimit > 0 && myBidCount >= auctionBidLimit) {
+      setBidSubmitState('error');
+      setBidSubmitText('Bid limit reached');
+      setBidResult({ ok: false, msg: `You have reached the maximum of ${auctionBidLimit} bid(s) allowed on this auction.` });
+      return;
+    }
     setBidSubmitState('loading');
     setBidSubmitText('Placing your bid...');
     setBidResult(null);

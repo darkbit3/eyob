@@ -112,6 +112,7 @@ function apiToAuction(a: any): Auction {
     retailValue: Number(a.retail_value ?? a.retailValue ?? 0),
     bidPerCost: Number(a.bid_per_cost ?? a.bidPerCost ?? 100),
     maxBidsPerUser: Number(a.max_bids_per_user ?? a.maxBidsPerUser ?? 0),
+    effectiveMaxBidsPerUser: Number(a.effective_max_bids_per_user ?? a.max_bids_per_user ?? a.maxBidsPerUser ?? 0),
     category: a.category,
     status,
     startTime,
