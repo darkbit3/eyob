@@ -138,7 +138,14 @@ export default function AuctionDetail() {
   const uniqueAmounts = Object.keys(amountCounts).map(Number).filter(amt => amountCounts[amt] === 1).sort((a, b) => a - b);
   const lowestUniqueAmount = uniqueAmounts.length > 0 ? uniqueAmounts[0] : null;
   const winningBid = lowestUniqueAmount ? auctionBids.find(b => b.amount === lowestUniqueAmount) : null;
-  const winningUser = winningBid ? users.find(u => u.id === winningBid.bidderId) ?? null : null;
+  const winningUser = winningBid
+    ? users.find(u => u.id === winningBid.bidderId) ?? {
+        id: winningBid.bidderId,
+        name: winningBid.bidderName || `Bidder (${winningBid.maskedBidderId})`,
+        phone: winningBid.bidderPhone || winningBid.maskedBidderId,
+        photo: winningBid.bidderPhoto || undefined,
+      }
+    : null;
 
   // ── COMPUTE REAL STATS FROM LIVE BIDS ──────────────────────────────────
   const participantCount = new Set(auctionBids.map(b => b.bidderId)).size;
@@ -800,9 +807,11 @@ export default function AuctionDetail() {
 
             {/* Close button */}
             <button onClick={closeModal} className="absolute top-4 right-4 z-10 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center font-bold transition-all">✕</button>
-            <div className="absolute top-4 left-4 z-10 rounded-full bg-slate-900/80 text-white px-3 py-1 text-[11px] font-black">
-              Result in {revealTimer}s
-            </div>
+            {revealTimer > 0 && (
+              <div className="absolute top-4 left-4 z-10 rounded-full bg-slate-900/80 text-white px-3 py-1 text-[11px] font-black">
+                Result in {revealTimer}s
+              </div>
+            )}
 
             {/* ── PHASE 1: PRODUCT COUNTDOWN ────────────────────────────────── */}
             {auditPhase === 'product_countdown' && (
@@ -1009,6 +1018,9 @@ export default function AuctionDetail() {
                     <p className="text-xs text-slate-500 flex items-center gap-1 font-bold">
                       <Phone className="w-3.5 h-3.5 text-blue-600" /> {winningUser.phone}
                     </p>
+                    <p className="text-[10px] text-slate-400 font-mono">
+                      Bidder ID: {winningBid?.maskedBidderId} · Placed {winningBid ? formatDate(winningBid.timestamp) : ''}
+                    </p>
                   </div>
                 </div>
 
@@ -1022,6 +1034,9 @@ export default function AuctionDetail() {
 
                 <button onClick={closeModal} className="btn-primary w-full py-3 text-sm">
                   View Complete Audit Table ↓
+                </button>
+                <button onClick={closeModal} className="w-full py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">
+                  ← Back to Auction
                 </button>
                   </>
                 ) : (
@@ -1045,6 +1060,9 @@ export default function AuctionDetail() {
                     </div>
                     <button onClick={closeModal} className="btn-primary w-full py-3 text-sm">
                       View Complete Audit Table ↓
+                    </button>
+                    <button onClick={closeModal} className="w-full py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">
+                      ← Back to Auction
                     </button>
                   </>
                 )}
