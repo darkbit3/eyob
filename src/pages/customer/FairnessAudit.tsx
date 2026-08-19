@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDate, formatCurrency } from '../../utils/countdown';
-import { bidsApi } from '../../utils/api';
+import { bidsApi, auctionsApi } from '../../utils/api';
 import { Bid } from '../../data/mockData';
 import {
   Shield, Trophy, CheckCircle, XCircle, Search,
@@ -63,6 +63,8 @@ export default function FairnessAudit() {
           productId: a.product_id ?? a.productId ?? undefined,
         }));
         setClosedAuctions(allClosed);
+        // Auto-select first auction
+        if (allClosed.length > 0) setSelectedId(allClosed[0].id);
       })
       .catch(() => {})
       .finally(() => setAuctionsLoading(false));
@@ -259,7 +261,12 @@ export default function FairnessAudit() {
         <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
           Select Closed Auction to Audit
         </label>
-        {closedAuctions.length === 0 ? (
+        {auctionsLoading ? (
+          <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            Loading closed auctions…
+          </div>
+        ) : closedAuctions.length === 0 ? (
           <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 rounded-xl p-4 border border-slate-200">
             <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
             No closed auctions available yet. Auctions appear here once they end.
@@ -273,7 +280,8 @@ export default function FairnessAudit() {
             >
               {closedAuctions.map(a => (
                 <option key={a.id} value={a.id}>
-                  {a.title} — {formatCurrency(a.retailValue)} retail • {a.totalBids} bids
+                  {a.title} — {formatCurrency(a.retailValue)} retail • {a.totalBids} bids • Ended {formatDate(a.endTime)}
+                </option>
                 </option>
               ))}
             </select>
