@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { ROUTES } from '../utils/routes';
@@ -7,9 +7,23 @@ import { Bell, Check, Sparkles, Wallet, Gavel, ShieldAlert, Trophy } from 'lucid
 export default function NotificationDropdown() {
   const { notifications, markNotificationRead } = useApp();
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const unreadNotifications = notifications.filter(n => !n.read);
+  const unreadNotifications = notifications
+    .filter(n => !n.read)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   const unreadCount = unreadNotifications.length;
+
+  useEffect(() => {
+    function closeOnOutsideClick(event: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick);
+  }, []);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -21,7 +35,7 @@ export default function NotificationDropdown() {
   };
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <button
         onClick={() => setOpen(!open)}
         className="relative p-2.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-colors"
@@ -36,9 +50,7 @@ export default function NotificationDropdown() {
       </button>
 
       {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in-50 zoom-in-95">
+        <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in-50 zoom-in-95">
             <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bell className="w-4 h-4 text-blue-400" />
@@ -103,8 +115,7 @@ export default function NotificationDropdown() {
                 View all notifications
               </Link>
             </div>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

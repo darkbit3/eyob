@@ -234,7 +234,7 @@ export default function Dashboard() {
                   <span className="font-mono text-emerald-700 font-bold">
                     {a.lowestUniqueBid ? `Won: ${a.lowestUniqueBid} ETB` : 'Closed'}
                   </span>
-                  <Link to={ROUTES.FAIRNESS_AUDIT} className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1">
+                  <Link to={`${ROUTES.FAIRNESS_AUDIT}?auction=${encodeURIComponent(a.id)}`} className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1">
                     Verify <ArrowUpRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>

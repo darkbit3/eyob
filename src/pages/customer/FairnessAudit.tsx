@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { formatDate, formatCurrency } from '../../utils/countdown';
 import { bidsApi, auctionsApi } from '../../utils/api';
@@ -30,6 +31,8 @@ function buildHash(auctionId: string, bids: { amount: number; bidderId: string }
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function FairnessAudit() {
   const { products } = useApp();
+  const [searchParams] = useSearchParams();
+  const requestedAuctionId = searchParams.get('auction');
 
   // ── Live closed auctions from API ─────────────────────────────────────────
   const [closedAuctions, setClosedAuctions] = useState<any[]>([]);
@@ -63,12 +66,14 @@ export default function FairnessAudit() {
           productId: a.product_id ?? a.productId ?? undefined,
         }));
         setClosedAuctions(allClosed);
-        // Auto-select first auction
-        if (allClosed.length > 0) setSelectedId(allClosed[0].id);
+        // Prefer an auction passed from Dashboard Verify, otherwise use the first one.
+        const requestedAuction = allClosed.find(a => a.id === requestedAuctionId);
+        if (requestedAuction) setSelectedId(requestedAuction.id);
+        else if (allClosed.length > 0) setSelectedId(allClosed[0].id);
       })
       .catch(() => {})
       .finally(() => setAuctionsLoading(false));
-  }, []);
+  }, [requestedAuctionId]);
 
   const [selectedId, setSelectedId] = useState<string>(closedAuctions[0]?.id ?? '');
   const [search, setSearch] = useState('');

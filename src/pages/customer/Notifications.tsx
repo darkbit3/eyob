@@ -121,6 +121,10 @@ export default function Notifications() {
   const [winnerNotif, setWinnerNotif] = useState<any | null>(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const sortedNotifications = [...notifications].sort((a, b) => {
+    if (a.read !== b.read) return Number(a.read) - Number(b.read);
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
 
   return (
     <div className="space-y-6 font-sans pb-10">
@@ -156,7 +160,7 @@ export default function Notifications() {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {notifications.map(n => {
+            {sortedNotifications.map(n => {
               const isWinner = n.type === 'winner_announced';
 
               return (
