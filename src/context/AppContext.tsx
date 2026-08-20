@@ -173,6 +173,16 @@ function apiToNotification(n: any): Notification {
   };
 }
 
+function uniqueNotifications(notifications: Notification[]): Notification[] {
+  const seen = new Set<string>();
+  return notifications.filter(notification => {
+    const key = notification.id || `${notification.type}:${notification.title}:${notification.timestamp}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // ── Web Audio Chime Synthesizer ───────────────────────────────────────────────
 function playNotificationSound() {
   try {
@@ -264,7 +274,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     notificationsApi.my()
       .then(res => {
         const notifs = (res.data || []).map(apiToNotification);
-        setNotifications(notifs);
+        setNotifications(uniqueNotifications(notifs));
         const hasUnread = notifs.some((n: any) => !n.read);
         if (hasUnread) {
           setTimeout(playNotificationSound, 800);
@@ -355,7 +365,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               // Refresh user and transaction ledger immediately
               void refreshCurrentUser();
               walletApi.myTransactions().then(r => setTransactions(r.data || [])).catch(() => {});
-              notificationsApi.my().then(r => setNotifications((r.data || []).map(apiToNotification))).catch(() => {});
+              notificationsApi.my().then(r => setNotifications(uniqueNotifications((r.data || []).map(apiToNotification)))).catch(() => {});
               playNotificationSound();
             }
           } catch (_e) {}
@@ -427,12 +437,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const res = await notificationsApi.my();
         const fresh = (res.data || []).map(apiToNotification);
         setNotifications(prev => {
+          const uniqueFresh = uniqueNotifications(fresh);
           const prevUnreadCount = prev.filter(n => !n.read).length;
-          const freshUnreadCount = fresh.filter(n => !n.read).length;
+          const freshUnreadCount = uniqueFresh.filter(n => !n.read).length;
           if (freshUnreadCount > prevUnreadCount) {
             playNotificationSound();
           }
-          return fresh;
+          return uniqueFresh;
         });
       } catch (e) {}
     }
@@ -462,7 +473,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       notificationsApi.my()
         .then(res => {
           const notifs = (res.data || []).map(apiToNotification);
-          setNotifications(notifs);
+          setNotifications(uniqueNotifications(notifs));
           if (notifs.some(n => !n.read)) playNotificationSound();
         })
         .catch(() => {});
