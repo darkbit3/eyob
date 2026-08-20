@@ -166,7 +166,7 @@ export default function Notifications() {
                     !n.read
                       ? isWinner
                         ? 'bg-amber-50/60 border-l-4 border-l-amber-400'
-                        : 'bg-emerald-50/40'
+                        : 'bg-emerald-50/40 border-l-4 border-l-emerald-400'
                       : 'bg-white'
                   }`}
                 >
@@ -186,7 +186,9 @@ export default function Notifications() {
                       </h2>
                       <span className="text-[11px] text-slate-400 font-mono shrink-0">{formatDate(n.timestamp)}</span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-600 leading-relaxed">{n.message}</p>
+                    <p className={`mt-1 text-sm leading-relaxed ${
+                      n.read ? 'text-slate-400' : 'text-slate-800 font-medium'
+                    }`}>{n.message}</p>
 
                     {/* Winner action buttons */}
                     {isWinner && (
