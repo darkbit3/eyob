@@ -176,7 +176,8 @@ function apiToNotification(n: any): Notification {
 function uniqueNotifications(notifications: Notification[]): Notification[] {
   const seen = new Set<string>();
   return notifications.filter(notification => {
-    const key = notification.id || `${notification.type}:${notification.title}:${notification.timestamp}`;
+    // Some older backend rows were duplicated with different IDs; content is the stable identity.
+    const key = `${notification.type}:${notification.title.trim().toLowerCase()}:${notification.message.trim().toLowerCase()}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
