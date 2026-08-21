@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatDate, formatCurrency } from '../../utils/countdown';
+import { Notification } from '../../types';
 import {
   Bell, Check, Trophy, Gavel, Wallet, ShieldAlert,
   Sparkles, X, Package
 } from 'lucide-react';
 
 // ── Winner Detail Modal ───────────────────────────────────────────────────────
-function WinnerModal({ notification, onClose }: { notification: any; onClose: () => void }) {
+function WinnerModal({ notification, onClose }: { notification: Notification; onClose: () => void }) {
   const meta = notification.metadata ?? {};
   const [ordering, setOrdering] = useState(false);
   const [ordered, setOrdered] = useState(false);

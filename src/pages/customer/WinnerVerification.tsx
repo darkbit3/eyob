@@ -5,7 +5,7 @@ import { ROUTES } from '../../utils/routes';
 import { formatDate, formatCurrency } from '../../utils/countdown';
 import { Shield, ChevronLeft, CheckCircle, XCircle, Trophy, Loader2 } from 'lucide-react';
 import { bidsApi } from '../../utils/api';
-import { Bid } from '../../data/mockData';
+import { Bid } from '../../types';
 
 export default function WinnerVerification() {
   const { id } = useParams<{ id: string }>();

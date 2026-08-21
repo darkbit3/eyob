@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { formatDate, formatCurrency } from '../../utils/countdown';
 import { bidsApi, auctionsApi } from '../../utils/api';
-import { Bid } from '../../data/mockData';
+import { Bid } from '../../types';
 import {
   Shield, Trophy, CheckCircle, XCircle, Search,
   ChevronLeft, ChevronRight, BarChart2, Hash, Sparkles, Info,

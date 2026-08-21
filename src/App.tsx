@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { ROUTES } from './utils/routes';
+import { Loader2 } from 'lucide-react';
 
 // Auth
 import Login            from './pages/auth/Login';
@@ -24,8 +25,21 @@ import MyBids             from './pages/customer/MyBids';
 import Notifications      from './pages/customer/Notifications';
 
 function ProtectedCustomer({ children }: { children: React.ReactNode }) {
-  const { currentUser } = useApp();
-  if (!currentUser) return <Navigate to={ROUTES.LOGIN} replace />;
+  const { currentUser, authLoading } = useApp();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white space-y-3">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Restoring Session…</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <Navigate to={ROUTES.LOGIN} replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -39,7 +53,7 @@ function AppRoutes() {
       <Route path={ROUTES.OTP_VERIFY}      element={<OtpVerify />} />
       <Route path={ROUTES.RESET_PASSWORD}  element={<ResetPassword />} />
 
-      {/* ── Protected ──────────────────────────────────────────────────── */}
+      {/* ── Protected Customer Routes ─────────────────────────────────── */}
       <Route element={<ProtectedCustomer><CustomerLayout /></ProtectedCustomer>}>
         <Route path={ROUTES.DASHBOARD}              element={<Dashboard />} />
         <Route path={ROUTES.AUCTIONS}               element={<AuctionList />} />

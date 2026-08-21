@@ -5,7 +5,7 @@ import { ROUTES } from '../../utils/routes';
 import CountdownTimer from '../../components/CountdownTimer';
 import { formatCurrency, formatDate } from '../../utils/countdown';
 import { bidsApi } from '../../utils/api';
-import { Bid } from '../../data/mockData';
+import { Bid } from '../../types';
 import {
   ChevronLeft, Users, TrendingDown, Phone, Lock, CreditCard,
   CheckCircle, AlertCircle, Gavel, Sparkles, Play, RefreshCw, Trophy, XCircle, Clock, Star, Loader2, Edit3, Trash2

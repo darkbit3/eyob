@@ -4,12 +4,13 @@ import { formatDate } from '../../utils/countdown';
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, CreditCard, Building2, ExternalLink, ShieldCheck, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { ChapaLogo, ManualPaymentLogo } from '../../components/PaymentMethodLogos';
 import { walletApi, settingsApi, uploadApi, paymentGatewaysApi } from '../../utils/api';
+import { Transaction, ApiTransaction } from '../../types';
 
 export default function Wallet() {
   const { currentUser, setPaymentQueue, refreshCurrentUser } = useApp();
 
   // ── Live transactions fetched from backend ────────────────────────────────
-  const [myTxs, setMyTxs] = useState<any[]>([]);
+  const [myTxs, setMyTxs] = useState<Transaction[]>([]);
   const [txLoading, setTxLoading] = useState(false);
   const [txRefreshing, setTxRefreshing] = useState(false);
 
@@ -18,16 +19,16 @@ export default function Wallet() {
     else setTxRefreshing(true);
     try {
       const res = await walletApi.myTransactions();
-      setMyTxs((res.data || []).map((t: any) => ({
+      setMyTxs((res.data || []).map((t: ApiTransaction) => ({
         id:          t.id,
-        userId:      t.user_id ?? t.userId ?? '',
-        userName:    t.user_name ?? t.userName ?? '',
+        userId:      t.user_id ?? '',
+        userName:    t.user_name ?? '',
         type:        t.type ?? '',
         amount:      Number(t.amount ?? 0),
         description: t.description ?? '',
-        status:      t.status ?? 'completed',
-        paymentMethod: t.payment_method ?? t.paymentMethod ?? '',
-        timestamp:   t.created_at ?? t.timestamp ?? new Date().toISOString(),
+        status:      (t.status as any) ?? 'completed',
+        paymentMethod: t.payment_method ?? '',
+        timestamp:   t.created_at ?? new Date().toISOString(),
       })));
     } catch {
       // keep existing data on error
@@ -51,26 +52,43 @@ export default function Wallet() {
   const [notes, setNotes] = useState('');
   const [receipt, setReceipt] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [amountError, setAmountError] = useState('');
+  const [withdrawFieldError, setWithdrawFieldError] = useState('');
   const [chapaEnabled, setChapaEnabled] = useState(false);
   const [chapaDisplayName, setChapaDisplayName] = useState('Chapa Payment');
-
 
   // Manual deposit proof mode & image import
   const [manualProofMode, setManualProofMode] = useState<'ref_id' | 'image'>('ref_id');
   const [receiptFilePreview, setReceiptFilePreview] = useState<string>('');
 
+  const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+  const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/gif'];
+
   function handleImageFileImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        setReceiptFilePreview(dataUrl);
-      };
-      reader.readAsDataURL(file);
-      setReceiptFile(file);
-      setReceipt('');
+    if (!file) return;
+
+    if (!ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
+      setMsg('Invalid file format. Please select a PNG, JPG, WEBP, or GIF image.');
+      setMsgType('error');
+      return;
     }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setMsg(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Maximum allowed size is 8 MB.`);
+      setMsgType('error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      setReceiptFilePreview(dataUrl);
+    };
+    reader.readAsDataURL(file);
+    setReceiptFile(file);
+    setReceipt('');
+    setMsg('');
   }
 
   // Deposit vs Withdraw tab state & Bank help info toggle
@@ -159,7 +177,7 @@ export default function Wallet() {
     setSelectedMethod(method);
     setChapaMode(mode);
     setAmount('500');
-    setReference(method === 'Chapa' ? '' : `TXN-${Date.now().toString().slice(-6)}`);
+    setReference('');
     setNotes('');
     setReceipt('');
     setReceiptFile(null);
@@ -172,9 +190,10 @@ export default function Wallet() {
 
   async function handleSubmitDeposit() {
     setMsg('');
+    setAmountError('');
     const amt = Number(amount);
-    if (!selectedMethod || !amt || amt <= 0) {
-      setMsg('Please enter a valid deposit amount.');
+    if (!selectedMethod || !Number.isFinite(amt) || amt <= 0) {
+      setAmountError('Enter a valid amount greater than 0 ETB.');
       setMsgType('error');
       return;
     }
@@ -253,6 +272,13 @@ export default function Wallet() {
           finalReceipt = uploadRes.data.url;
         }
 
+        if (finalReceipt && !/^https?:\/\/\S+$/i.test(finalReceipt)) {
+          setMsg('Receipt image must be a valid URL or uploaded image.');
+          setMsgType('error');
+          setLoading(false);
+          return;
+        }
+
         const res = await walletApi.submitDeposit({
           amount: amt,
           credits: amt,
@@ -299,9 +325,11 @@ export default function Wallet() {
   async function handleWithdrawSubmit(e: React.FormEvent) {
     e.preventDefault();
     setWithdrawMsg('');
+    setWithdrawFieldError('');
     const amt = Number(withdrawAmount);
-    if (!amt || amt <= 0) {
+    if (!Number.isFinite(amt) || amt <= 0) {
       setWithdrawMsg('Please enter a valid withdrawal amount.');
+      setWithdrawFieldError('Amount must be a number greater than 0.');
       return;
     }
     const userBal = currentUser?.walletBalance ?? 0;
@@ -311,6 +339,17 @@ export default function Wallet() {
     }
     if (!withdrawAccountNo || !withdrawAccountName) {
       setWithdrawMsg('Please provide your bank account number and holder name.');
+      setWithdrawFieldError('Account number and account holder name are required.');
+      return;
+    }
+    if (!/^[0-9+][0-9\s-]{3,29}$/.test(withdrawAccountNo.trim())) {
+      setWithdrawMsg('Please enter a valid account or phone number.');
+      setWithdrawFieldError('Use 4-30 digits, spaces, hyphens, or a leading +.');
+      return;
+    }
+    if (withdrawAccountName.trim().length < 2) {
+      setWithdrawMsg('Please enter the account holder name.');
+      setWithdrawFieldError('Account holder name must be at least 2 characters.');
       return;
     }
 
@@ -581,6 +620,7 @@ export default function Wallet() {
                 placeholder="Enter amount (e.g. 500)"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 focus:outline-none focus:border-rose-500"
               />
+              {withdrawFieldError && <p className="text-rose-600 text-xs font-semibold mt-1">{withdrawFieldError}</p>}
               <p className="text-[11px] text-slate-500 mt-1">
                 Available for withdrawal: <strong className="text-emerald-600">{(currentUser?.walletBalance ?? 0).toLocaleString()} ETB</strong>
               </p>
@@ -729,6 +769,7 @@ export default function Wallet() {
                 placeholder="Or enter custom amount in ETB"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 focus:outline-none focus:border-purple-500"
               />
+              {amountError && <p className="text-rose-600 text-xs font-semibold mt-1">{amountError}</p>}
             </div>
 
 

@@ -54,7 +54,7 @@ export default function Login() {
       setCurrentUser({
         id:            u.id,
         name:          u.name,
-        email:         u.email,
+        email:         u.email ?? '',
         phone:         u.phone ?? fullPhone,
         role:          u.role,
         walletBalance: Number(u.wallet_balance ?? 0),

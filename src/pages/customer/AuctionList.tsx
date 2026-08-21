@@ -5,7 +5,7 @@ import { ROUTES } from '../../utils/routes';
 import AuctionCard from '../../components/AuctionCard';
 import CountdownTimer from '../../components/CountdownTimer';
 import { formatCurrency, formatDate } from '../../utils/countdown';
-import { Auction, Bid } from '../../data/mockData';
+import { Auction, Bid, ApiBid } from '../../types';
 import { bidsApi } from '../../utils/api';
 import {
   Search, X, Trophy, CheckCircle, XCircle, Loader2,
@@ -64,13 +64,13 @@ export default function AuctionList() {
     bidsApi.forAuction(selectedAuction.id)
       .then(res => {
         if (cancelled) return;
-        setAuctionBids((res.data || []).map((b: any) => ({
+        setAuctionBids((res.data || []).map((b: ApiBid) => ({
           id: b.id,
           auctionId: b.auction_id ?? selectedAuction.id,
-          bidderId: b.bidder_id ?? b.bidderId ?? '',
-          maskedBidderId: b.masked_bidder_id ?? b.maskedBidderId ?? '',
+          bidderId: b.bidder_id ?? '',
+          maskedBidderId: b.masked_bidder_id ?? '',
           amount: Number(b.amount ?? 0),
-          timestamp: b.created_at ?? b.timestamp ?? new Date().toISOString(),
+          timestamp: b.created_at ?? new Date().toISOString(),
           isDuplicate: Boolean(b.is_duplicate ?? false),
           isLowestUnique: Boolean(b.is_lowest_unique ?? false),
         })));
@@ -125,23 +125,23 @@ export default function AuctionList() {
     window.setTimeout(async () => {
       try {
         const ok = await placeBid(selectedAuction.id, amount);
-      if (ok) {
-        setBidSubmitState('success');
-        setBidSubmitText('Bid placed!');
-        setBidResult({ ok: true, msg: `Bid placed! ${selectedAuction.bidPerCost ?? 100} ETB fee deducted from your wallet.` });
-        setBidAmount('');
-        bidsApi.forAuction(selectedAuction.id)
-          .then(res => setAuctionBids((res.data || []).map((b: any) => ({
-            id: b.id, auctionId: b.auction_id ?? selectedAuction.id,
-            bidderId: b.bidder_id ?? '', maskedBidderId: b.masked_bidder_id ?? '',
-            amount: Number(b.amount ?? 0), timestamp: b.created_at ?? new Date().toISOString(),
-            isDuplicate: Boolean(b.is_duplicate), isLowestUnique: Boolean(b.is_lowest_unique),
-          })))).catch(() => {});
-      } else {
-        setBidSubmitState('error');
-        setBidSubmitText('Bid failed');
-        setBidResult({ ok: false, msg: 'Unable to place bid. Check your wallet balance.' });
-      }
+        if (ok) {
+          setBidSubmitState('success');
+          setBidSubmitText('Bid placed!');
+          setBidResult({ ok: true, msg: `Bid placed! ${selectedAuction.bidPerCost ?? 100} ETB fee deducted from your wallet.` });
+          setBidAmount('');
+          bidsApi.forAuction(selectedAuction.id)
+            .then(res => setAuctionBids((res.data || []).map((b: ApiBid) => ({
+              id: b.id, auctionId: b.auction_id ?? selectedAuction.id,
+              bidderId: b.bidder_id ?? '', maskedBidderId: b.masked_bidder_id ?? '',
+              amount: Number(b.amount ?? 0), timestamp: b.created_at ?? new Date().toISOString(),
+              isDuplicate: Boolean(b.is_duplicate), isLowestUnique: Boolean(b.is_lowest_unique),
+            })))).catch(() => {});
+        } else {
+          setBidSubmitState('error');
+          setBidSubmitText('Bid failed');
+          setBidResult({ ok: false, msg: 'Unable to place bid. Check your wallet balance.' });
+        }
       } catch (err: any) {
         setBidSubmitState('error');
         setBidSubmitText('Bid failed');
@@ -178,7 +178,6 @@ export default function AuctionList() {
 
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-6 sm:p-8 shadow-2xl border border-white/5">
-        {/* Decorative blobs */}
         <div className="pointer-events-none absolute -top-20 -right-20 w-72 h-72 rounded-full bg-indigo-600/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-12 -left-12 w-56 h-56 rounded-full bg-violet-600/20 blur-3xl" />
 
@@ -221,7 +220,7 @@ export default function AuctionList() {
           </div>
         </div>
 
-        {/* Search bar inside hero */}
+        {/* Search bar */}
         <div className="relative mt-5">
           <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
@@ -351,7 +350,6 @@ export default function AuctionList() {
           ))}
         </div>
       ) : (
-        /* List view */
         <div className="space-y-2">
           {filtered.map(auction => {
             const isLive = auction.status === 'active';
@@ -398,7 +396,6 @@ export default function AuctionList() {
             onClick={e => e.stopPropagation()}
             className="w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] bg-white sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
           >
-            {/* Modal top image banner */}
             <div className="relative h-48 sm:h-56 bg-slate-100 shrink-0 overflow-hidden">
               <img
                 src={selectedAuction.image}
@@ -408,7 +405,6 @@ export default function AuctionList() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/20 to-transparent" />
 
-              {/* Close btn */}
               <button
                 onClick={closeModal}
                 className="absolute top-4 right-4 w-9 h-9 bg-white/15 hover:bg-white/30 backdrop-blur-md text-white rounded-full flex items-center justify-center font-bold text-base border border-white/20 transition-all"
@@ -416,7 +412,6 @@ export default function AuctionList() {
                 ✕
               </button>
 
-              {/* Status badge */}
               <div className="absolute top-4 left-4">
                 {selectedAuction.status === 'active' && (
                   <span className="flex items-center gap-1.5 bg-emerald-500 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg">
@@ -435,22 +430,17 @@ export default function AuctionList() {
                 )}
               </div>
 
-              {/* Title overlay */}
               <div className="absolute bottom-4 left-4 right-12">
                 <p className="text-white/70 text-[10px] font-bold uppercase tracking-wider mb-1">{selectedAuction.category}</p>
                 <h2 className="text-white font-black text-lg sm:text-xl leading-tight line-clamp-2">{selectedAuction.title}</h2>
               </div>
             </div>
 
-            {/* Modal body — scrollable */}
             <div className="overflow-y-auto flex-1 p-5 space-y-4">
-
-              {/* Description */}
               {selectedAuction.description && (
                 <p className="text-sm text-slate-500 leading-relaxed">{selectedAuction.description}</p>
               )}
 
-              {/* Key stats row */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-2xl p-3 text-center">
                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-wider">Bid Cost</p>
@@ -468,7 +458,6 @@ export default function AuctionList() {
                 </div>
               </div>
 
-              {/* Countdown */}
               <div className="bg-slate-900 rounded-2xl p-4 text-white flex items-center justify-between gap-4">
                 <div>
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">
@@ -482,7 +471,6 @@ export default function AuctionList() {
                 </div>
               </div>
 
-              {/* Live bid stats */}
               {!bidsLoading && auctionBids.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
                   {[
@@ -499,7 +487,6 @@ export default function AuctionList() {
                 </div>
               )}
 
-              {/* Winner banner (closed) */}
               {selectedAuction.status === 'closed' && winningBid && (
                 <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-2xl p-4 text-white flex items-center gap-3 shadow-lg shadow-amber-900/20">
                   <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
@@ -512,7 +499,6 @@ export default function AuctionList() {
                 </div>
               )}
 
-              {/* Bid form (active) */}
               {selectedAuction.status === 'active' && (
                 <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl p-4 space-y-3">
                   <div className="flex items-center justify-between gap-2">
@@ -573,7 +559,6 @@ export default function AuctionList() {
                 </div>
               )}
 
-              {/* Upcoming info */}
               {selectedAuction.status === 'upcoming' && (
                 <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3 text-sm">
                   <Clock className="w-5 h-5 text-blue-500 shrink-0" />

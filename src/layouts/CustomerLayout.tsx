@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -20,16 +20,18 @@ export default function CustomerLayout() {
   const [installing, setInstalling] = useState(false);
   const [installedSuccess, setInstalledSuccess] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
 
   // Listen for native browser PWA install prompt
-  useState(() => {
+  useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      setCanInstall(true);
     };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
-  });
+  }, []);
 
   const userBidsCount = bids.filter(b => b.bidderId === currentUser?.id).length;
 
@@ -54,12 +56,7 @@ export default function CustomerLayout() {
       return;
     }
 
-    // Fallback: If not in Chrome prompt or iOS Safari, trigger home screen add instructions / instant install payload
-    setTimeout(() => {
-      setInstalling(false);
-      setInstalledSuccess(true);
-      setTimeout(() => setInstalledSuccess(false), 4000);
-    }, 1000);
+    setInstalling(false);
   }
 
   const desktopLinks = [
@@ -195,7 +192,7 @@ export default function CustomerLayout() {
       {/* ══════════════════════════════════════════════════════════
           CIRCULAR FLOATING ACTION BUTTON (FAB) FOR GET APP
       ══════════════════════════════════════════════════════════ */}
-      <div className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-50 group">
+      {canInstall && <div className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-50 group">
         <button
           onClick={handleInstallApp}
           disabled={installing}
@@ -215,7 +212,7 @@ export default function CustomerLayout() {
             {installing ? '...' : 'Get App'}
           </span>
         </button>
-      </div>
+      </div>}
 
       {/* Success Toast */}
       {installedSuccess && (

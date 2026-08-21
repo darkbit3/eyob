@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Auction } from '../data/mockData';
+import { Auction } from '../types';
 import CountdownTimer from './CountdownTimer';
 import { formatCurrency, getAuctionDisplayStatus } from '../utils/countdown';
 import { ROUTES } from '../utils/routes';
@@ -28,14 +28,13 @@ export default function AuctionCard({
   const isUpcoming = displayStatus === 'upcoming';
   const isClosed = displayStatus === 'closed';
 
-
   const isUnlocked = isAuctionUnlocked(auction.id);
   const bidCost = auction.bidPerCost || 100;
   const userBalance = currentUser?.walletBalance ?? 0;
   const canAfford = userBalance >= bidCost;
 
-  // Lock only applies to active and upcoming auctions
-  const needsUnlock = !isUnlocked && (isActive || isUpcoming) && currentUser?.role !== 'admin';
+  // Lock only applies to active and upcoming auctions for non-admin users
+  const needsUnlock = !isUnlocked && (isActive || isUpcoming) && currentUser?.role !== 'admin' && currentUser?.role !== 'super_admin';
 
   function handleCardClick(e: React.MouseEvent) {
     if (needsUnlock) {
@@ -239,7 +238,7 @@ export default function AuctionCard({
               </div>
             )}
 
-            {/* Status feedback: loading / success / error */}
+            {/* Status feedback */}
             {unlockState !== 'idle' && (
               <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl border mb-4 text-center transition-all ${
                 unlockState === 'loading' ? 'bg-amber-50 border-amber-200' :

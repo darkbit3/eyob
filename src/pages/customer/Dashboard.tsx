@@ -6,6 +6,7 @@ import { ROUTES } from '../../utils/routes';
 import CountdownTimer from '../../components/CountdownTimer';
 import { formatDate } from '../../utils/countdown';
 import { walletApi, advertisementsApi } from '../../utils/api';
+import { ApiTransaction, AdvertisementItem } from '../../types';
 import {
   Wallet, Trophy, Bell, ArrowRight, ArrowUpRight,
   Gavel, History, TrendingDown, Users, Loader2,
@@ -22,9 +23,9 @@ export default function Dashboard() {
   const { t } = useLanguage();
 
   // ── Live transactions from API ─────────────────────────────────────────
-  const [myTx, setMyTx] = useState<any[]>([]);
+  const [myTx, setMyTx] = useState<{ id: string; description: string; amount: number; type: string; timestamp: string }[]>([]);
   const [txLoading, setTxLoading] = useState(false);
-  const [ads, setAds] = useState<any[]>([]);
+  const [ads, setAds] = useState<AdvertisementItem[]>([]);
   const [adsLoading, setAdsLoading] = useState(true);
 
   useEffect(() => {
@@ -32,12 +33,12 @@ export default function Dashboard() {
     setTxLoading(true);
     walletApi.myTransactions()
       .then(res => {
-        setMyTx((res.data || []).slice(0, 5).map((tx: any) => ({
+        setMyTx((res.data || []).slice(0, 5).map((tx: ApiTransaction) => ({
           id:          tx.id,
           description: tx.description ?? '',
           amount:      Number(tx.amount ?? 0),
           type:        tx.type ?? '',
-          timestamp:   tx.created_at ?? tx.timestamp ?? new Date().toISOString(),
+          timestamp:   tx.created_at ?? new Date().toISOString(),
         })));
       })
       .catch(() => {})

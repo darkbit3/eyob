@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { ROUTES } from '../../utils/routes';
+import { Bid, Auction } from '../../types';
 
 import { Gavel, Edit3, Plus, ArrowRight, CheckCircle, AlertCircle, History, X, ChevronDown, Search } from 'lucide-react';
 
@@ -111,7 +112,7 @@ export default function MyBids() {
   }
 
   // Render bid card
-  function BidCard({ bid, auction, isFromHistory = false }: { bid: any; auction: any; isFromHistory?: boolean }) {
+  function BidCard({ bid, auction, isFromHistory = false }: { bid: Bid; auction: Auction; isFromHistory?: boolean }) {
     const isEditing = editingBidId === bid.id;
     const isAddingAnother = addBidAuctionId === auction.id;
     const isActive = auction.status === 'active';

@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import {
   User, Auction, AuctionStatus, Bid, Transaction, Notification, Product, PaymentQueueItem, Announcement, AuditLog, SystemSettings,
   initialSettings,
-} from '../data/mockData';
+  ApiUser, ApiAuction, ApiProduct, ApiBid, ApiNotification,
+} from '../types';
 import {
   getToken, removeToken,
   usersApi, auctionsApi, productsApi, bidsApi,
@@ -11,6 +12,7 @@ import {
 
 interface AppContextType {
   currentUser: User | null;
+  authLoading: boolean;
   setCurrentUser: (u: User | null) => void;
   
   // Data States
@@ -47,7 +49,7 @@ interface AppContextType {
   refreshCurrentUser: () => Promise<void>;
   logout: () => void;
 
-  // Admin Actions
+  // Admin Actions (compat)
   addAuditLog: (action: string, target: string, details: string) => void;
   createAuction: (auction: Omit<Auction, 'id' | 'totalParticipants' | 'totalBids'>) => void;
   updateAuction: (id: string, updates: Partial<Auction>) => void;
@@ -68,33 +70,35 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
-// ── Shape converter: API row → App User ───────────────────────────────────────
-function apiToUser(u: any): User {
+// ── Shape converters: API DTO → App Model ────────────────────────────────────
+export function apiToUser(u: ApiUser): User {
   return {
     id: u.id,
     name: u.name,
     email: u.email ?? '',
     phone: u.phone ?? '',
-    role: u.role,
-    walletBalance: Number(u.wallet_balance ?? u.walletBalance ?? 0),
-    status: u.status,
-    joinedAt: u.joined_at ?? u.joinedAt ?? new Date().toISOString().split('T')[0],
-    wonAuctions: u.won_auctions ?? u.wonAuctions ?? [],
-    photo: u.photo_url ?? u.photo ?? undefined,
+    role: u.role ?? 'customer',
+    walletBalance: Number(u.wallet_balance ?? 0),
+    credits: u.credits !== undefined ? Number(u.credits) : undefined,
+    status: u.status ?? 'active',
+    joinedAt: u.joined_at ?? new Date().toISOString().split('T')[0],
+    wonAuctions: u.won_auctions ?? [],
+    photo: u.photo_url ?? undefined,
   };
 }
 
-function apiToAuction(a: any): Auction {
-  const endTime  = a.end_time   ?? a.endTime   ?? '';
-  const startTime = a.start_time ?? a.startTime ?? '';
-  const dbStatus  = a.status as string;
-  const imageUrl = a.image_url ?? a.image ?? a.imageUrl ?? '';
-  const safeImageUrl = imageUrl.includes('photo-1675785931670-9f51e7a2a6e0')
-    ? 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80'
-    : imageUrl;
+export function apiToAuction(a: ApiAuction): Auction {
+  const endTime = a.end_time ?? '';
+  const startTime = a.start_time ?? '';
+  const dbStatus = a.status;
+  const rawImage = a.image_url ?? a.image ?? '';
+  const fallbackImage = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
+  const safeImageUrl = rawImage.includes('photo-1675785931670-9f51e7a2a6e0') || !rawImage
+    ? fallbackImage
+    : rawImage;
 
-  // Correct stale status based on actual times
-  let status: AuctionStatus = dbStatus as AuctionStatus;
+  // Derive active/closed status if timestamps have expired
+  let status: AuctionStatus = dbStatus;
   const now = Date.now();
   if (endTime && new Date(endTime).getTime() < now && dbStatus === 'active') {
     status = 'closed';
@@ -104,79 +108,93 @@ function apiToAuction(a: any): Auction {
 
   return {
     id: a.id,
-    productId: a.product_id ?? a.productId ?? undefined,
-    productName: a.product_name ?? a.productName ?? undefined,
+    productId: a.product_id ?? undefined,
+    productName: a.product_name ?? undefined,
     title: a.title,
     description: a.description ?? '',
     image: safeImageUrl,
-    retailValue: Number(a.retail_value ?? a.retailValue ?? 0),
-    bidPerCost: Number(a.bid_per_cost ?? a.bidPerCost ?? 100),
-    maxBidsPerUser: Number(a.max_bids_per_user ?? a.maxBidsPerUser ?? 0),
-    effectiveMaxBidsPerUser: Number(a.effective_max_bids_per_user ?? a.max_bids_per_user ?? a.maxBidsPerUser ?? 0),
+    retailValue: Number(a.retail_value ?? 0),
+    bidPerCost: Number(a.bid_per_cost ?? 100),
+    maxBidsPerUser: Number(a.max_bids_per_user ?? 0),
+    effectiveMaxBidsPerUser: Number(a.effective_max_bids_per_user ?? a.max_bids_per_user ?? 0),
     category: a.category,
     status,
     startTime,
     endTime,
-    minBid: Number(a.min_bid ?? a.minBid ?? 1),
-    maxBid: Number(a.max_bid ?? a.maxBid ?? 500),
-    totalParticipants: Number(a.total_participants ?? a.totalParticipants ?? 0),
-    totalBids: Number(a.total_bids ?? a.totalBids ?? 0),
+    minBid: Number(a.min_bid ?? 1),
+    maxBid: Number(a.max_bid ?? 500),
+    totalParticipants: Number(a.total_participants ?? 0),
+    totalBids: Number(a.total_bids ?? 0),
+    winnerId: a.winner_id ?? undefined,
+    winnerName: a.winner_name ?? undefined,
+    lowestUniqueBid: a.lowest_unique_bid !== undefined ? Number(a.lowest_unique_bid) : undefined,
+    closedAt: a.closed_at ?? undefined,
   };
 }
 
-function apiToProduct(p: any): Product {
-  const images = Array.isArray(p.images)
-    ? p.images
-    : p.images
-      ? JSON.parse(p.images)
-      : [];
+export function apiToProduct(p: ApiProduct): Product {
+  let images: string[] = [];
+  if (Array.isArray(p.images)) {
+    images = p.images;
+  } else if (typeof p.images === 'string') {
+    try {
+      images = JSON.parse(p.images);
+    } catch {
+      images = [p.images];
+    }
+  }
+
   const fallbackImage = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
   const safeImages = images.map((image: string) => image.includes('photo-1675785931670-9f51e7a2a6e0') ? fallbackImage : image);
-  const primaryImage = p.image_url ?? (safeImages.length > 0 ? safeImages[0] : p.image ?? '');
+  const rawPrimary = p.image_url ?? (safeImages.length > 0 ? safeImages[0] : p.image ?? '');
+  const primaryImage = rawPrimary.includes('photo-1675785931670-9f51e7a2a6e0') || !rawPrimary ? fallbackImage : rawPrimary;
 
   return {
     id: p.id,
     name: p.name,
     category: p.category,
-    image: primaryImage.includes('photo-1675785931670-9f51e7a2a6e0') ? fallbackImage : primaryImage,
+    image: primaryImage,
     images: safeImages,
-    retailValue: Number(p.retail_value ?? p.retailValue ?? 0),
+    retailValue: Number(p.retail_value ?? 0),
     description: p.description ?? '',
-    linkedAuctionId: p.linked_auction_id ?? p.linkedAuctionId ?? undefined,
-    linkedAuctionStatus: p.linked_auction_status ?? p.linkedAuctionStatus ?? undefined,
-    createdAt: p.created_at ?? p.createdAt ?? new Date().toISOString().split('T')[0],
+    linkedAuctionId: p.linked_auction_id ?? undefined,
+    linkedAuctionStatus: p.linked_auction_status ?? undefined,
+    createdAt: p.created_at ?? new Date().toISOString().split('T')[0],
   };
 }
 
-function apiToBid(b: any): Bid {
+export function apiToBid(b: ApiBid): Bid {
   return {
     id: b.id,
-    auctionId: b.auction_id ?? b.auctionId ?? '',
-    bidderId: b.bidder_id ?? b.bidderId ?? '',
-    maskedBidderId: b.masked_bidder_id ?? b.maskedBidderId ?? '',
+    auctionId: b.auction_id ?? '',
+    bidderId: b.bidder_id ?? '',
+    maskedBidderId: b.masked_bidder_id ?? '',
+    bidderName: b.bidder_name ?? undefined,
+    bidderPhone: b.bidder_phone ?? undefined,
+    bidderPhoto: b.bidder_photo ?? undefined,
     amount: Number(b.amount ?? 0),
-    timestamp: b.created_at ?? b.timestamp ?? new Date().toISOString(),
-    isDuplicate: Boolean(b.is_duplicate ?? b.isDuplicate ?? false),
-    isLowestUnique: Boolean(b.is_lowest_unique ?? b.isLowestUnique ?? false),
+    timestamp: b.created_at ?? new Date().toISOString(),
+    isDuplicate: Boolean(b.is_duplicate ?? false),
+    isLowestUnique: Boolean(b.is_lowest_unique ?? false),
   };
 }
 
-function apiToNotification(n: any): Notification {
+export function apiToNotification(n: ApiNotification): Notification {
   return {
     id: n.id,
-    userId: n.user_id ?? n.userId ?? '',
+    userId: n.user_id ?? '',
     type: n.type ?? 'system',
     title: n.title ?? 'Notification',
     message: n.message ?? '',
     read: Boolean(n.is_read ?? n.read ?? false),
-    timestamp: n.created_at ?? n.timestamp ?? new Date().toISOString(),
+    timestamp: n.created_at ?? new Date().toISOString(),
+    metadata: n.metadata,
   };
 }
 
 function uniqueNotifications(notifications: Notification[]): Notification[] {
   const seen = new Set<string>();
   return notifications.filter(notification => {
-    // Some older backend rows were duplicated with different IDs; content is the stable identity.
     const key = `${notification.type}:${notification.title.trim().toLowerCase()}:${notification.message.trim().toLowerCase()}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -191,18 +209,17 @@ function playNotificationSound() {
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     
-    // Play pleasant high chime (two harmonic tones)
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
     const gainNode = ctx.createGain();
 
     osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-    osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+    osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
 
     osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(880, ctx.currentTime); // A5
-    osc2.frequency.exponentialRampToValueAtTime(1174.66, ctx.currentTime + 0.2); // D6
+    osc2.frequency.setValueAtTime(880, ctx.currentTime);
+    osc2.frequency.exponentialRampToValueAtTime(1174.66, ctx.currentTime + 0.2);
 
     gainNode.gain.setValueAtTime(0.001, ctx.currentTime);
     gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
@@ -216,13 +233,14 @@ function playNotificationSound() {
     osc2.start(ctx.currentTime);
     osc1.stop(ctx.currentTime + 0.45);
     osc2.stop(ctx.currentTime + 0.45);
-  } catch (_e) {
+  } catch {
     // AudioContext autoplay permission or unsupported
   }
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUserState] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -233,20 +251,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(initialSettings);
-
   const [unlockedAuctionIds, setUnlockedAuctionIds] = useState<string[]>([]);
 
   // ── On mount: restore session & load live data ──────────────────────────────
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      setAuthLoading(false);
+      // Load public auction & product listings
+      auctionsApi.list()
+        .then(res => setAuctions(res.data.map(apiToAuction)))
+        .catch(() => {});
+      productsApi.list()
+        .then(res => setProducts(res.data.map(apiToProduct)))
+        .catch(() => {});
+      return;
+    }
 
     // Restore current user from API
     usersApi.me()
-      .then(res => setCurrentUserState(apiToUser(res.data)))
-      .catch(() => removeToken());
+      .then(res => {
+        setCurrentUserState(apiToUser(res.data));
+      })
+      .catch(() => {
+        removeToken();
+        setCurrentUserState(null);
+      })
+      .finally(() => {
+        setAuthLoading(false);
+      });
 
-    // Load auctions from real database
+    // Load auctions
     auctionsApi.list()
       .then(res => setAuctions(res.data.map(apiToAuction)))
       .catch(() => {});
@@ -256,7 +291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then(res => setUnlockedAuctionIds(res.data || []))
       .catch(() => {});
 
-    // Load products from real database
+    // Load products
     productsApi.list()
       .then(res => setProducts(res.data.map(apiToProduct)))
       .catch(() => {});
@@ -268,7 +303,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Load my transactions
     walletApi.myTransactions()
-      .then(res => setTransactions(res.data))
+      .then(res => {
+        setTransactions((res.data || []).map(t => ({
+          id: t.id,
+          userId: t.user_id ?? '',
+          userName: t.user_name ?? '',
+          type: t.type ?? '',
+          amount: Number(t.amount ?? 0),
+          description: t.description ?? '',
+          status: t.status ?? 'completed',
+          paymentMethod: t.payment_method,
+          timestamp: t.created_at ?? new Date().toISOString(),
+        })));
+      })
       .catch(() => {});
 
     // Load notifications with sound check
@@ -276,7 +323,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then(res => {
         const notifs = (res.data || []).map(apiToNotification);
         setNotifications(uniqueNotifications(notifs));
-        const hasUnread = notifs.some((n: any) => !n.read);
+        const hasUnread = notifs.some(n => !n.read);
         if (hasUnread) {
           setTimeout(playNotificationSound, 800);
         }
@@ -286,7 +333,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function isAuctionUnlocked(auctionId: string): boolean {
     if (!currentUser) return false;
-    if (currentUser.role === 'admin') return true;
+    if (currentUser.role === 'admin' || currentUser.role === 'super_admin') return true;
     return unlockedAuctionIds.includes(auctionId);
   }
 
@@ -296,7 +343,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (res.success) {
         setUnlockedAuctionIds(prev => Array.from(new Set([...prev, auctionId])));
         await refreshCurrentUser();
-        walletApi.myTransactions().then(r => setTransactions(r.data || [])).catch(() => {});
+        walletApi.myTransactions().then(r => {
+          setTransactions((r.data || []).map(t => ({
+            id: t.id,
+            userId: t.user_id ?? '',
+            userName: t.user_name ?? '',
+            type: t.type ?? '',
+            amount: Number(t.amount ?? 0),
+            description: t.description ?? '',
+            status: t.status ?? 'completed',
+            paymentMethod: t.payment_method,
+            timestamp: t.created_at ?? new Date().toISOString(),
+          })));
+        }).catch(() => {});
         return { success: true, message: res.message || 'Auction unlocked successfully!' };
       } else {
         return { success: false, message: res.message || 'Failed to unlock auction' };
@@ -310,8 +369,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const res = await usersApi.me();
       setCurrentUserState(apiToUser(res.data));
-    } catch (_err) {
-      // silently ignore — keep stale data
+    } catch {
+      // silently ignore — keep current state
     }
   }
 
@@ -329,7 +388,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // ── Live WebSocket connection: Real-time balance and transaction push ────────
+  // ── Live WebSocket connection: Real-time balance and notification push ───────
   useEffect(() => {
     if (!currentUser) return;
     const token = getToken();
@@ -355,7 +414,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'balance_updated') {
-              // Instantly update current user balance in memory without reload
               if (data.wallet_balance !== undefined) {
                 setCurrentUserState(prev => prev ? {
                   ...prev,
@@ -363,13 +421,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   credits: data.credits !== undefined ? Number(data.credits) : prev.credits,
                 } : null);
               }
-              // Refresh user and transaction ledger immediately
               void refreshCurrentUser();
-              walletApi.myTransactions().then(r => setTransactions(r.data || [])).catch(() => {});
+              walletApi.myTransactions().then(r => {
+                setTransactions((r.data || []).map(t => ({
+                  id: t.id,
+                  userId: t.user_id ?? '',
+                  userName: t.user_name ?? '',
+                  type: t.type ?? '',
+                  amount: Number(t.amount ?? 0),
+                  description: t.description ?? '',
+                  status: t.status ?? 'completed',
+                  paymentMethod: t.payment_method,
+                  timestamp: t.created_at ?? new Date().toISOString(),
+                })));
+              }).catch(() => {});
               notificationsApi.my().then(r => setNotifications(uniqueNotifications((r.data || []).map(apiToNotification)))).catch(() => {});
               playNotificationSound();
             }
-          } catch (_e) {}
+          } catch {
+            // ignore malformed ws message
+          }
         };
 
         ws.onclose = () => {
@@ -379,7 +450,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ws.onerror = () => {
           if (ws) ws.close();
         };
-      } catch (_e) {
+      } catch {
         reconnectTimeout = window.setTimeout(connect, 5000);
       }
     }
@@ -402,7 +473,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const res = await usersApi.me();
         setCurrentUserState(apiToUser(res.data));
-      } catch (e) {}
+      } catch {}
     }
     if (currentUser) {
       poll();
@@ -415,22 +486,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void refreshMyBids();
   }, [currentUser?.id]);
 
-  // Poll auctions every 20s so statuses, totals, and countdowns stay live
+  // Poll auctions every 20s
   useEffect(() => {
     let id: number | undefined;
     async function pollAuctions() {
       try {
         const res = await auctionsApi.list();
         setAuctions(res.data.map(apiToAuction));
-      } catch (_e) {}
+      } catch {}
     }
-    // Always poll auctions whether logged in or not (public data)
     pollAuctions();
     id = window.setInterval(pollAuctions, 20000);
     return () => { if (id) window.clearInterval(id); };
   }, []);
 
-  // Poll notifications so customers see new auction alerts without needing a manual refresh
+  // Poll notifications
   useEffect(() => {
     let id: number | undefined;
     async function pollNotifications() {
@@ -446,7 +516,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
           return uniqueFresh;
         });
-      } catch (e) {}
+      } catch {}
     }
     if (currentUser) {
       pollNotifications();
@@ -457,7 +527,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function setCurrentUser(u: User | null) {
     setCurrentUserState(u);
-    // If user is set, reload their fresh data
     if (u) {
       auctionsApi.list()
         .then(res => setAuctions(res.data.map(apiToAuction)))
@@ -469,7 +538,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .then(res => setBids((res.data || []).map(apiToBid)))
         .catch(() => setBids([]));
       walletApi.myTransactions()
-        .then(res => setTransactions(res.data))
+        .then(res => {
+          setTransactions((res.data || []).map(t => ({
+            id: t.id,
+            userId: t.user_id ?? '',
+            userName: t.user_name ?? '',
+            type: t.type ?? '',
+            amount: Number(t.amount ?? 0),
+            description: t.description ?? '',
+            status: t.status ?? 'completed',
+            paymentMethod: t.payment_method,
+            timestamp: t.created_at ?? new Date().toISOString(),
+          })));
+        })
         .catch(() => {});
       notificationsApi.my()
         .then(res => {
@@ -517,34 +598,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     try {
       const res = await bidsApi.place(auctionId, safeAmount);
-        const bidData = res.data || {};
-        const deductedAmount = Number(bidData.amount ?? safeAmount);
+      const bidData = res.data || {};
+      const deductedAmount = Number(bidData.amount ?? safeAmount);
 
-        setUsers(prev => prev.map(u => u.id === currentUser.id
-          ? { ...u, walletBalance: Math.max(0, Number(u.walletBalance) - deductedAmount) }
-          : u
-        ));
-        setAuctions(prev => prev.map(a => a.id === auctionId ? { ...a, totalBids: a.totalBids + 1 } : a));
+      setUsers(prev => prev.map(u => u.id === currentUser.id
+        ? { ...u, walletBalance: Math.max(0, Number(u.walletBalance) - deductedAmount) }
+        : u
+      ));
+      setAuctions(prev => prev.map(a => a.id === auctionId ? { ...a, totalBids: a.totalBids + 1 } : a));
 
-        const tx: Transaction = {
-          id: `t${Date.now()}`,
-          userId: currentUser.id,
-          userName: currentUser.name,
-          type: 'bid_placed',
-          amount: -deductedAmount,
-          description: `Bid placed on "${targetAuction?.title || auctionId}" — ${safeAmount} ETB`,
-          timestamp: new Date().toISOString(),
-          status: 'completed',
-        };
-        setTransactions(prev => [tx, ...prev]);
+      const tx: Transaction = {
+        id: `t${Date.now()}`,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        type: 'bid_placed',
+        amount: -deductedAmount,
+        description: `Bid placed on "${targetAuction?.title || auctionId}" — ${safeAmount} ETB`,
+        timestamp: new Date().toISOString(),
+        status: 'completed',
+      };
+      setTransactions(prev => [tx, ...prev]);
 
-        setCurrentUser({
-          ...currentUser,
-          walletBalance: Math.max(0, Number(currentUser.walletBalance) - deductedAmount),
-        });
+      setCurrentUser({
+        ...currentUser,
+        walletBalance: Math.max(0, Number(currentUser.walletBalance) - deductedAmount),
+      });
 
-        void refreshMyBids();
-        refreshCurrentUser().catch(() => {});
+      void refreshMyBids();
+      refreshCurrentUser().catch(() => {});
       return true;
     } catch (err) {
       throw err;
@@ -557,131 +638,84 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
-  // ── Admin Actions ─────────────────────────────────────────────────────────────
+  // ── Compatibility Admin Actions ──────────────────────────────────────────────
   function createAuction(auctionData: Omit<Auction, 'id' | 'totalParticipants' | 'totalBids'>) {
     const id = `a0${auctions.length + 1}`;
     const newAuction: Auction = { ...auctionData, id, totalParticipants: 0, totalBids: 0 };
     setAuctions(prev => [newAuction, ...prev]);
-    addAuditLog('Created Auction', newAuction.title, `Category: ${newAuction.category}, Bid Per Cost: ${newAuction.bidPerCost || newAuction.retailValue} ETB`);
+    addAuditLog('Created Auction', newAuction.title, `Category: ${newAuction.category}`);
   }
 
   function updateAuction(id: string, updates: Partial<Auction>) {
     setAuctions(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-    const target = auctions.find(a => a.id === id);
-    addAuditLog('Edited Auction', target?.title || id, `Updated parameters: ${Object.keys(updates).join(', ')}`);
   }
 
   function pauseAuction(id: string) {
     setAuctions(prev => prev.map(a => a.id === id ? { ...a, status: 'paused' } : a));
-    const target = auctions.find(a => a.id === id);
-    addAuditLog('Paused Auction', target?.title || id, 'Auction status changed to PAUSED.');
   }
 
   function resumeAuction(id: string) {
     setAuctions(prev => prev.map(a => a.id === id ? { ...a, status: 'active' } : a));
-    const target = auctions.find(a => a.id === id);
-    addAuditLog('Resumed Auction', target?.title || id, 'Auction status changed to ACTIVE.');
   }
 
   function cancelAuction(id: string) {
     setAuctions(prev => prev.map(a => a.id === id ? { ...a, status: 'closed' } : a));
-    const target = auctions.find(a => a.id === id);
-    addAuditLog('Cancelled Auction', target?.title || id, 'Auction cancelled by admin.');
   }
 
   function addProduct(prodData: Omit<Product, 'id' | 'createdAt'>) {
     const id = `p0${products.length + 1}`;
     const newProd: Product = { ...prodData, id, createdAt: new Date().toISOString().split('T')[0] };
     setProducts(prev => [newProd, ...prev]);
-    addAuditLog('Created Product', newProd.name, `Retail value: ${newProd.retailValue} ETB`);
   }
 
   function updateProduct(id: string, updates: Partial<Product>) {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-    const target = products.find(p => p.id === id);
-    addAuditLog('Updated Product', target?.name || id, `Fields updated: ${Object.keys(updates).join(', ')}`);
   }
 
   function deleteProduct(id: string) {
-    const target = products.find(p => p.id === id);
     setProducts(prev => prev.filter(p => p.id !== id));
-    addAuditLog('Deleted Product', target?.name || id, 'Product deleted from inventory catalog.');
   }
 
   function toggleUserStatus(userId: string) {
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        const nextStatus = u.status === 'active' ? 'suspended' : 'active';
-        addAuditLog(nextStatus === 'suspended' ? 'Suspended User' : 'Activated User', `${u.name} (${u.id})`, `Status changed to ${nextStatus.toUpperCase()}`);
-        return { ...u, status: nextStatus };
-      }
-      return u;
-    }));
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: u.status === 'active' ? 'suspended' : 'active' } : u));
   }
 
   function deleteUser(userId: string) {
-    const target = users.find(u => u.id === userId);
     setUsers(prev => prev.filter(u => u.id !== userId));
-    addAuditLog('Deleted User Account', `${target?.name} (${userId})`, 'User removed from platform registry.');
   }
 
   function approvePayment(queueId: string) {
-    const item = paymentQueue.find(p => p.id === queueId);
-    if (!item) return;
-    setPaymentQueue(prev => prev.map(p => p.id === queueId ? { ...p, status: 'approved', notes: `Approved by ${currentUser?.name || 'Admin'}` } : p));
-    setUsers(prev => prev.map(u => u.id === item.userId ? { ...u, walletBalance: u.walletBalance + item.amount } : u));
-    const tx: Transaction = {
-      id: `t${Date.now()}`, userId: item.userId, userName: item.userName,
-      type: 'wallet_deposit', amount: item.amount,
-      description: `Approved deposit via ${item.paymentMethod} (Ref: ${item.referenceNumber})`,
-      timestamp: new Date().toISOString(), status: 'completed', paymentMethod: item.paymentMethod,
-    };
-    setTransactions(prev => [tx, ...prev]);
-    addAuditLog('Approved Payment', `${item.userName} (${item.referenceNumber})`, `Amount: ${item.amount} ETB`);
-
+    setPaymentQueue(prev => prev.map(p => p.id === queueId ? { ...p, status: 'approved' } : p));
   }
 
-  function rejectPayment(queueId: string, reason = 'Verification details do not match bank statement') {
-    const item = paymentQueue.find(p => p.id === queueId);
-    if (!item) return;
-    setPaymentQueue(prev => prev.map(p => p.id === queueId ? { ...p, status: 'rejected', notes: `Rejected: ${reason}` } : p));
-    addAuditLog('Rejected Payment', `${item.userName} (${item.referenceNumber})`, `Reason: ${reason}`);
+  function rejectPayment(queueId: string, reason = 'Verification details do not match') {
+    setPaymentQueue(prev => prev.map(p => p.id === queueId ? { ...p, status: 'rejected', notes: reason } : p));
   }
 
-  function adjustUserWallet(userId: string, amount: number, reason: string) {
-    const targetUser = users.find(u => u.id === userId);
-    if (!targetUser) return;
-    setUsers(prev => prev.map(u => u.id === userId
-      ? { ...u, walletBalance: Math.max(0, u.walletBalance + amount) }
-      : u
-    ));
-    const tx: Transaction = {
-      id: `t${Date.now()}`, userId, userName: targetUser.name,
-      type: 'manual_adjustment', amount,
-      description: `Admin manual adjustment (Wallet): ${reason}`,
-      timestamp: new Date().toISOString(), status: 'completed',
-    };
-    setTransactions(prev => [tx, ...prev]);
-    addAuditLog('Manual Wallet Adjustment', `${targetUser.name} (${userId})`, `Adjusted ${amount > 0 ? '+' : ''}${amount} ETB. Reason: ${reason}`);
+  function adjustUserWallet(userId: string, amount: number, _reason: string) {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, walletBalance: Math.max(0, u.walletBalance + amount) } : u));
   }
 
   function sendAnnouncement(data: Omit<Announcement, 'id' | 'timestamp' | 'deliveredCount' | 'sentBy'>) {
     const newAnn: Announcement = {
-      ...data, id: `ann${Date.now()}`, sentBy: currentUser?.name || 'Admin',
-      timestamp: new Date().toISOString(), deliveredCount: users.length,
+      ...data,
+      id: `ann${Date.now()}`,
+      sentBy: currentUser?.name || 'Admin',
+      timestamp: new Date().toISOString(),
+      deliveredCount: users.length,
     };
     setAnnouncements(prev => [newAnn, ...prev]);
-    addAuditLog('Sent Announcement', data.audience, `Title: "${data.title}" (${data.type})`);
   }
 
   function updateSystemSettings(newSettings: Partial<SystemSettings>) {
     setSettings(prev => ({ ...prev, ...newSettings }));
-    addAuditLog('Updated Settings', 'Platform Core', `Updated parameters: ${Object.keys(newSettings).join(', ')}`);
   }
 
   return (
     <AppContext.Provider value={{
-      currentUser, setCurrentUser,
+      currentUser,
+      authLoading,
+      setCurrentUser,
       refreshCurrentUser,
       auctions, setAuctions,
       products, setProducts,
@@ -725,6 +759,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 const fallbackAppContext: AppContextType = {
   currentUser: null,
+  authLoading: false,
   setCurrentUser: () => {},
   refreshCurrentUser: async () => {},
   auctions: [],

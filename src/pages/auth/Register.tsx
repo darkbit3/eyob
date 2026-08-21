@@ -96,7 +96,7 @@ export default function Register() {
       setCurrentUser({
         id:            u.id,
         name:          u.name,
-        email:         u.email,
+        email:         u.email ?? '',
         phone:         u.phone ?? `+251${phoneDigits}`,
         role:          u.role,
         walletBalance: Number(u.wallet_balance ?? 0),
