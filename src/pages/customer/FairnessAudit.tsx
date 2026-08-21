@@ -352,8 +352,6 @@ export default function FairnessAudit() {
                         {isSelected && <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />}
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-slate-500">
-                        <span>{formatCurrency(a.retailValue)} retail</span>
-                        <span>•</span>
                         <span>{a.totalBids} bids</span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1">Ended {formatDate(a.endTime)}</p>
@@ -423,7 +421,6 @@ export default function FairnessAudit() {
                 { label: 'Unique Bids', value: bidsLoading ? '…' : uniqueAmounts.length, icon: <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />, color: 'text-emerald-700' },
                 { label: 'Duplicate Bids', value: bidsLoading ? '…' : rawBids.length - uniqueAmounts.length, icon: <XCircle className="w-3.5 h-3.5 text-rose-500" />, color: 'text-rose-600' },
                 { label: 'Lowest Unique', value: bidsLoading ? '…' : lowestUnique !== null ? `${lowestUnique} ETB` : '—', icon: <Trophy className="w-3.5 h-3.5 text-amber-500" />, color: 'text-amber-700' },
-                { label: 'Retail Value', value: formatCurrency(auction.retailValue), icon: <Hash className="w-3.5 h-3.5 text-slate-400" />, color: 'text-slate-700' },
               ].map(s => (
                 <div key={s.label} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">{s.icon}</div>
