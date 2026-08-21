@@ -107,15 +107,8 @@ export default function Dashboard() {
           ) : (
             <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-thin">
               {ads.map(ad => {
-                const content = <div className="relative h-44 sm:h-52 min-w-[86vw] sm:min-w-[520px] lg:min-w-[600px] overflow-hidden rounded-2xl bg-slate-900 text-white shadow-sm snap-start">
-                  <img src={ad.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-65" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/75 to-transparent" />
-                  <div className="relative z-10 flex h-full max-w-md flex-col justify-center p-6 sm:p-8">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Featured</span>
-                    <h3 className="mt-2 text-xl sm:text-2xl font-black leading-tight">{ad.title}</h3>
-                    {ad.subtitle && <p className="mt-1 text-xs sm:text-sm text-slate-200 line-clamp-2">{ad.subtitle}</p>}
-                    {ad.cta_label && <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-black text-slate-950">{ad.cta_label} <ArrowRight className="w-3.5 h-3.5" /></span>}
-                  </div>
+                const content = <div className="relative h-44 sm:h-52 min-w-[86vw] sm:min-w-[520px] lg:min-w-[600px] overflow-hidden rounded-2xl bg-slate-100 shadow-sm snap-start">
+                  <img src={ad.image_url} alt={ad.title || 'Advertisement'} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 </div>;
                 return ad.target_url ? <a key={ad.id} href={ad.target_url} target="_blank" rel="noreferrer" className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-2xl">{content}</a> : <div key={ad.id}>{content}</div>;
               })}
