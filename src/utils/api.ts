@@ -209,6 +209,10 @@ export const notificationsApi = {
     request<{ success: boolean }>(`/notifications/${id}/read`, { method: 'PATCH' }),
 };
 
+export const advertisementsApi = {
+  active: () => request<{ success: boolean; data: any[] }>('/advertisements/active'),
+};
+
 // ── Audit Logs ────────────────────────────────────────────────────────────────
 export const auditApi = {
   list: () => request<{ success: boolean; data: any[] }>('/audit'),

@@ -5,7 +5,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { ROUTES } from '../../utils/routes';
 import CountdownTimer from '../../components/CountdownTimer';
 import { formatDate } from '../../utils/countdown';
-import { walletApi } from '../../utils/api';
+import { walletApi, advertisementsApi } from '../../utils/api';
 import {
   Wallet, Trophy, Bell, ArrowRight, ArrowUpRight,
   Gavel, History, TrendingDown, Users, Loader2,
@@ -24,6 +24,8 @@ export default function Dashboard() {
   // ── Live transactions from API ─────────────────────────────────────────
   const [myTx, setMyTx] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
+  const [ads, setAds] = useState<any[]>([]);
+  const [adsLoading, setAdsLoading] = useState(true);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -41,6 +43,13 @@ export default function Dashboard() {
       .catch(() => {})
       .finally(() => setTxLoading(false));
   }, [currentUser?.id]);
+
+  useEffect(() => {
+    advertisementsApi.active()
+      .then(res => setAds(res.data || []))
+      .catch(() => setAds([]))
+      .finally(() => setAdsLoading(false));
+  }, []);
 
   const activeAuctions   = auctions.filter(a => a.status === 'active');
   const upcomingAuctions = auctions.filter(a => a.status === 'upcoming');
@@ -82,6 +91,38 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {/* ── Advertisements ─────────────────────────────────────────────────── */}
+      {(adsLoading || ads.length > 0) && (
+        <section className="space-y-3" aria-label="Advertisements">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-black text-emerald-600">From BidLow</p>
+              <h2 className="text-lg font-black text-slate-900">Featured for you</h2>
+            </div>
+            {ads.length > 1 && <span className="text-[10px] font-bold text-slate-400">Swipe to explore</span>}
+          </div>
+          {adsLoading ? (
+            <div className="h-44 rounded-2xl bg-slate-100 animate-pulse" />
+          ) : (
+            <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-thin">
+              {ads.map(ad => {
+                const content = <div className="relative h-44 sm:h-52 min-w-[86vw] sm:min-w-[520px] lg:min-w-[600px] overflow-hidden rounded-2xl bg-slate-900 text-white shadow-sm snap-start">
+                  <img src={ad.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-65" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/75 to-transparent" />
+                  <div className="relative z-10 flex h-full max-w-md flex-col justify-center p-6 sm:p-8">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Featured</span>
+                    <h3 className="mt-2 text-xl sm:text-2xl font-black leading-tight">{ad.title}</h3>
+                    {ad.subtitle && <p className="mt-1 text-xs sm:text-sm text-slate-200 line-clamp-2">{ad.subtitle}</p>}
+                    {ad.cta_label && <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-black text-slate-950">{ad.cta_label} <ArrowRight className="w-3.5 h-3.5" /></span>}
+                  </div>
+                </div>;
+                return ad.target_url ? <a key={ad.id} href={ad.target_url} target="_blank" rel="noreferrer" className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-2xl">{content}</a> : <div key={ad.id}>{content}</div>;
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Wallet + Recent Transactions ────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
