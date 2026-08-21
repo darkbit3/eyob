@@ -5,6 +5,7 @@ import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, C
 import { ChapaLogo, ManualPaymentLogo } from '../../components/PaymentMethodLogos';
 import { walletApi, settingsApi, uploadApi, paymentGatewaysApi } from '../../utils/api';
 import { Transaction, ApiTransaction } from '../../types';
+import { ROUTES } from '../../utils/routes';
 
 export default function Wallet() {
   const { currentUser, setPaymentQueue, refreshCurrentUser } = useApp();
@@ -210,7 +211,8 @@ export default function Wallet() {
             setLoading(false);
             return;
           }
-          const res = await walletApi.chapaInitialize(amt);
+          const returnUrl = `${window.location.origin}${ROUTES.WALLET}`;
+          const res = await walletApi.chapaInitialize(amt, returnUrl);
           if (res.success && res.data?.checkout_url) {
             setMsg('Redirecting to Chapa checkout…');
             setMsgType('info');

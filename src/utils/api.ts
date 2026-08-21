@@ -248,10 +248,10 @@ export const walletApi = {
       method: 'PATCH',
       body: JSON.stringify({ reason }),
     }),
-  chapaInitialize: (amount: number) =>
+  chapaInitialize: (amount: number, returnUrl?: string) =>
     request<ApiResponse<{ checkout_url: string; tx_ref: string }>>('/wallet/chapa/initialize', {
       method: 'POST',
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ amount, return_url: returnUrl }),
     }),
   chapaVerify: (txRef: string) =>
     request<ApiResponse<{ status: string; amount?: number }>>(`/wallet/chapa/verify/${txRef}`),
