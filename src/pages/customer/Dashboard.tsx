@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [txLoading, setTxLoading] = useState(false);
   const [ads, setAds] = useState<AdvertisementItem[]>([]);
   const [adsLoading, setAdsLoading] = useState(true);
+  const adsRailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -51,6 +52,22 @@ export default function Dashboard() {
       .catch(() => setAds([]))
       .finally(() => setAdsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (ads.length < 2) return;
+    const rail = adsRailRef.current;
+    if (!rail) return;
+
+    const timer = window.setInterval(() => {
+      const firstCard = rail.firstElementChild as HTMLElement | null;
+      if (!firstCard) return;
+      const nextPosition = rail.scrollLeft + firstCard.offsetWidth + 16;
+      const atEnd = nextPosition >= rail.scrollWidth - rail.clientWidth - 4;
+      rail.scrollTo({ left: atEnd ? 0 : nextPosition, behavior: 'smooth' });
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [ads.length]);
 
   const activeAuctions   = auctions.filter(a => a.status === 'active');
   const upcomingAuctions = auctions.filter(a => a.status === 'upcoming');
@@ -106,7 +123,7 @@ export default function Dashboard() {
           {adsLoading ? (
             <div className="h-44 rounded-2xl bg-slate-100 animate-pulse" />
           ) : (
-            <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-thin">
+            <div ref={adsRailRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-thin scroll-smooth">
               {ads.map(ad => {
                 const content = <div className="relative h-44 sm:h-52 min-w-[86vw] sm:min-w-[520px] lg:min-w-[600px] overflow-hidden rounded-2xl bg-slate-100 shadow-sm snap-start">
                   <img src={ad.image_url} alt={ad.title || 'Advertisement'} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
