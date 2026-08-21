@@ -420,7 +420,6 @@ export default function FairnessAudit() {
                 { label: 'Total Bids', value: bidsLoading ? '…' : rawBids.length, icon: <TrendingDown className="w-3.5 h-3.5 text-blue-500" />, color: 'text-slate-900' },
                 { label: 'Unique Bids', value: bidsLoading ? '…' : uniqueAmounts.length, icon: <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />, color: 'text-emerald-700' },
                 { label: 'Duplicate Bids', value: bidsLoading ? '…' : rawBids.length - uniqueAmounts.length, icon: <XCircle className="w-3.5 h-3.5 text-rose-500" />, color: 'text-rose-600' },
-                { label: 'Lowest Unique', value: bidsLoading ? '…' : lowestUnique !== null ? `${lowestUnique} ETB` : '—', icon: <Trophy className="w-3.5 h-3.5 text-amber-500" />, color: 'text-amber-700' },
               ].map(s => (
                 <div key={s.label} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">{s.icon}</div>
