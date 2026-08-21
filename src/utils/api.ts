@@ -209,6 +209,10 @@ export const notificationsApi = {
     request<{ success: boolean }>(`/notifications/${id}/read`, { method: 'PATCH' }),
 };
 
+export const paymentGatewaysApi = {
+  active: () => request<{ success: boolean; data: any[] }>('/settings/payment-gateways'),
+};
+
 export const advertisementsApi = {
   active: () => request<{ success: boolean; data: any[] }>('/advertisements/active'),
 };

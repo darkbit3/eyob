@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/countdown';
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Trophy, RefreshCw, CreditCard, Building2, ExternalLink, ShieldCheck, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { ChapaLogo, ManualPaymentLogo } from '../../components/PaymentMethodLogos';
-import { walletApi, settingsApi, uploadApi } from '../../utils/api';
+import { walletApi, settingsApi, uploadApi, paymentGatewaysApi } from '../../utils/api';
 
 export default function Wallet() {
   const { currentUser, setPaymentQueue, refreshCurrentUser } = useApp();
@@ -51,6 +51,8 @@ export default function Wallet() {
   const [notes, setNotes] = useState('');
   const [receipt, setReceipt] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [chapaEnabled, setChapaEnabled] = useState(false);
+  const [chapaDisplayName, setChapaDisplayName] = useState('Chapa Payment');
 
 
   // Manual deposit proof mode & image import
@@ -110,6 +112,16 @@ export default function Wallet() {
         }
       })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    paymentGatewaysApi.active()
+      .then(res => {
+        const chapa = (res.data || []).find((gateway: any) => gateway.name.toLowerCase() === 'chapa');
+        setChapaEnabled(Boolean(chapa));
+        if (chapa?.display_name) setChapaDisplayName(chapa.display_name);
+      })
+      .catch(() => setChapaEnabled(false));
   }, []);
 
   // ── Auto-verify Chapa payment on return from checkout ─────────────────────
@@ -380,7 +392,7 @@ export default function Wallet() {
               <CreditCard className="w-4 h-4" /> Top-Up &amp; Withdrawal Guidelines
             </div>
             <p className="text-xs sm:text-sm font-semibold text-slate-900 leading-relaxed">
-              Instant digital deposits via <strong className="text-purple-600 font-extrabold">Chapa</strong>, direct bank deposits, or fast withdrawals directly to your account.
+              {chapaEnabled && <>Instant digital deposits via <strong className="text-purple-600 font-extrabold">{chapaDisplayName}</strong>, </>}direct bank deposits, or fast withdrawals directly to your account.
             </p>
           </div>
           <p className="text-[11px] text-slate-500 mt-4 border-t border-slate-200 pt-3">
@@ -463,7 +475,7 @@ export default function Wallet() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* METHOD 1: CHAPA */}
-            <div className="group relative rounded-3xl border-2 border-slate-200 hover:border-purple-500 bg-gradient-to-b from-slate-50 to-purple-50/20 p-6 transition-all duration-300 hover:shadow-xl flex flex-col justify-between">
+            {chapaEnabled && <div className="group relative rounded-3xl border-2 border-slate-200 hover:border-purple-500 bg-gradient-to-b from-slate-50 to-purple-50/20 p-6 transition-all duration-300 hover:shadow-xl flex flex-col justify-between">
               <div className="flex items-start justify-between">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-2 shadow-md flex items-center justify-center">
                   <ChapaLogo />
@@ -475,7 +487,7 @@ export default function Wallet() {
 
               <div className="mt-4">
                 <h3 className="text-base font-black text-slate-900">
-                  Chapa Payment
+                  {chapaDisplayName}
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                   Instant checkout via Telebirr, CBE Birr, Mobile Banking, and Debit/Credit Cards.
@@ -499,7 +511,7 @@ export default function Wallet() {
                   <ArrowUpRight className="w-3.5 h-3.5" /> Withdraw
                 </button>
               </div>
-            </div>
+            </div>}
 
             {/* METHOD 2: MANUAL PAYMENT */}
             <div
