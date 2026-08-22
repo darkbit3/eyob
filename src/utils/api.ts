@@ -15,12 +15,11 @@ import {
   PaymentQueueItem,
 } from '../types';
 
-const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
 const BASE =
   (import.meta.env.VITE_API_URL
     ? `${import.meta.env.VITE_API_URL}/api`
     : null) ??
-  (/localhost|127\.0\.0\.1/.test(runtimeHost) ? '/api' : 'https://eyob-backend.onrender.com/api');
+  'https://api.ethio-bid.com/api';
 
 export interface ApiResponse<T> {
   success: boolean;
